@@ -32,3 +32,16 @@ cpx new b 3
 cpx s a
 cpx run a
 ```
+
+## Windows
+
+- Recommended toolchain: `MSYS2 UCRT64`
+- Make sure `g++` is available in `PATH`
+- If you need to override the compiler, set `CXX`
+
+Example:
+
+```powershell
+$env:CXX = "g++"
+cpx run a
+```
