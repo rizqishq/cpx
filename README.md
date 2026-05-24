@@ -20,7 +20,7 @@ go install github.com/rizqishq/cpx@latest
 Or with curl:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rizqishq/cpx/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/rizqishq/cpx/master/install.sh | sh
 ```
 
 Then run it as:
