@@ -1,0 +1,232 @@
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+)
+
+func ensureWorkspace(root string) error {
+	templatesDir := filepath.Join(root, appDir, "templates")
+	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
+		return err
+	}
+
+	configFile := filepath.Join(root, configPath)
+	if _, err := os.Stat(configFile); errors.Is(err, os.ErrNotExist) {
+		data, err := json.MarshalIndent(defaultWorkspaceConfig, "", "  ")
+		if err != nil {
+			return err
+		}
+		data = append(data, '\n')
+		if err := os.WriteFile(configFile, data, 0o644); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+
+	templateFile := filepath.Join(root, templatePath)
+	if _, err := os.Stat(templateFile); errors.Is(err, os.ErrNotExist) {
+		if err := os.WriteFile(templateFile, []byte(defaultTemplate), 0o644); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else {
+		template, err := os.ReadFile(templateFile)
+		if err != nil {
+			return err
+		}
+		if string(template) == legacyDefaultTemplate {
+			if err := os.WriteFile(templateFile, []byte(defaultTemplate), 0o644); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func cmdInit(root string, stdout io.Writer) error {
+	if err := ensureWorkspace(root); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintf(stdout, "Initialized workspace at %s\n", filepath.Join(root, appDir))
+	return err
+}
+
+func normalizeConfig(cfg config) config {
+	normalized := defaultWorkspaceConfig
+
+	if value := strings.TrimSpace(cfg.Language); value != "" {
+		normalized.Language = strings.ToLower(value)
+	}
+	switch normalized.Language {
+	case "c++", "cxx":
+		normalized.Language = "cpp"
+	}
+
+	if value := strings.TrimSpace(cfg.Standard); value != "" {
+		normalized.Standard = strings.ToLower(value)
+	}
+
+	return normalized
+}
+
+func validateConfig(cfg config) error {
+	if cfg.Language != "cpp" {
+		return fmt.Errorf("unsupported language %q in %s; currently only \"cpp\" is supported", cfg.Language, configPath)
+	}
+	return nil
+}
+
+func readConfig(root string) (config, error) {
+	configFile := filepath.Join(root, configPath)
+	data, err := os.ReadFile(configFile)
+	if errors.Is(err, os.ErrNotExist) {
+		return config{}, errors.New("workspace not initialized; run 'cpx init' first")
+	}
+	if err != nil {
+		return config{}, err
+	}
+
+	cfg := defaultWorkspaceConfig
+	if len(strings.TrimSpace(string(data))) > 0 {
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return config{}, fmt.Errorf("invalid config file %s: %w", configPath, err)
+		}
+	}
+
+	cfg = normalizeConfig(cfg)
+	if err := validateConfig(cfg); err != nil {
+		return config{}, err
+	}
+	return cfg, nil
+}
+
+func sourceFileName(cfg config) string {
+	switch cfg.Language {
+	case "cpp":
+		return "main.cpp"
+	default:
+		return "main.cpp"
+	}
+}
+
+func readTemplate(root string) ([]byte, error) {
+	templateFile := filepath.Join(root, templatePath)
+	data, err := os.ReadFile(templateFile)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, errors.New("workspace not initialized; run 'cpx init' first")
+	}
+	return data, err
+}
+
+func parseSampleCountArg(args []string) (int, error) {
+	if len(args) == 0 {
+		return 1, nil
+	}
+
+	count, err := strconv.Atoi(args[0])
+	if err != nil || count < 1 {
+		return 0, errors.New("sample count must be a positive integer")
+	}
+	return count, nil
+}
+
+func createSampleFiles(samplesDir string, start, count int) error {
+	for index := 0; index < count; index++ {
+		sampleNumber := start + index
+		inputPath := filepath.Join(samplesDir, fmt.Sprintf("%d.in", sampleNumber))
+		outputPath := filepath.Join(samplesDir, fmt.Sprintf("%d.out", sampleNumber))
+		if err := os.WriteFile(inputPath, []byte{}, 0o644); err != nil {
+			return err
+		}
+		if err := os.WriteFile(outputPath, []byte{}, 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func nextSampleNumber(samplesDir string) (int, error) {
+	entries, err := os.ReadDir(samplesDir)
+	if err != nil {
+		return 0, err
+	}
+
+	maxSample := 0
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".in") {
+			continue
+		}
+		base := strings.TrimSuffix(entry.Name(), ".in")
+		number, err := strconv.Atoi(base)
+		if err != nil {
+			continue
+		}
+		if number > maxSample {
+			maxSample = number
+		}
+	}
+	return maxSample + 1, nil
+}
+
+func cmdNew(root, problem string, sampleCount int, stdout io.Writer) error {
+	cfg, err := readConfig(root)
+	if err != nil {
+		return err
+	}
+
+	template, err := readTemplate(root)
+	if err != nil {
+		return err
+	}
+
+	problemDir := filepath.Join(root, problem)
+	samplesDir := filepath.Join(problemDir, "samples")
+	if err := os.Mkdir(problemDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.Mkdir(samplesDir, 0o755); err != nil {
+		return err
+	}
+
+	sourcePath := filepath.Join(problemDir, sourceFileName(cfg))
+	if err := os.WriteFile(sourcePath, template, 0o644); err != nil {
+		return err
+	}
+	if err := createSampleFiles(samplesDir, 1, sampleCount); err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(stdout, "Created problem at %s\n", problemDir)
+	return err
+}
+
+func cmdAddSamples(root, problem string, sampleCount int, stdout io.Writer) error {
+	samplesDir := filepath.Join(root, problem, "samples")
+	if _, err := os.Stat(samplesDir); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("missing samples directory: %s", samplesDir)
+		}
+		return err
+	}
+
+	start, err := nextSampleNumber(samplesDir)
+	if err != nil {
+		return err
+	}
+	if err := createSampleFiles(samplesDir, start, sampleCount); err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(stdout, "Added %d sample(s) to %s\n", sampleCount, problem)
+	return err
+}
