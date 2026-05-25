@@ -39,10 +39,22 @@ Create a problem:
 cpx new a # create a/main.cpp and a/samples/{1.in,1.out}
 ```
 
+Create a problem with a named template:
+
+```bash
+cpx new c debug # use .cpx/templates/debug.cpp
+```
+
 Create a problem with multiple sample pairs:
 
 ```bash
 cpx new b 3 # create b with 3 sample pairs
+```
+
+Create a problem with both sample count and template:
+
+```bash
+cpx new d 2 debug # create d with 2 sample pairs using debug.cpp
 ```
 
 Add more samples:
@@ -116,6 +128,9 @@ cpx run a # this should print PASS for sample 1
 - `cpx new <problem> [count]`
   Create a problem folder and `count` sample pairs. The default count is `1`.
   Example: `cpx new a`
+- `cpx new <problem> [count] [template]`
+  Create a problem with an optional named template from `.cpx/templates/`.
+  Examples: `cpx new a debug`, `cpx new a 3 debug`
 - `cpx s <problem> [count]`
   Add `count` new sample pairs to an existing problem. The default count is `1`.
   Example: `cpx s a 2`
@@ -161,6 +176,24 @@ cpx init                    # create the workspace files
 $EDITOR .cpx/templates/main.cpp
 cpx new a                   # a/main.cpp now uses your edited template
 ```
+
+You can also add more templates to the same directory:
+
+```text
+.cpx/templates/
+├── main.cpp
+├── debug.cpp
+└── graph.cpp
+```
+
+Then choose one when creating a problem:
+
+```bash
+cpx new a debug
+cpx new b 3 graph
+```
+
+Template names may be written with or without the `.cpp` extension.
 
 ## Windows
 

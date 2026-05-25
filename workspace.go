@@ -110,6 +110,17 @@ func readConfig(root string) (config, error) {
 	return cfg, nil
 }
 
+func normalizeTemplateName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "main.cpp"
+	}
+	if filepath.Ext(name) == "" {
+		name += ".cpp"
+	}
+	return name
+}
+
 func sourceFileName(cfg config) string {
 	switch cfg.Language {
 	case "cpp":
@@ -119,11 +130,44 @@ func sourceFileName(cfg config) string {
 	}
 }
 
-func readTemplate(root string) ([]byte, error) {
-	templateFile := filepath.Join(root, templatePath)
+func parseNewArgs(args []string) (int, string, error) {
+	if len(args) == 0 {
+		return 1, "", nil
+	}
+	if len(args) > 2 {
+		return 0, "", errors.New("new accepts at most a sample count and a template name")
+	}
+
+	templateName := ""
+	sampleCount := 1
+
+	if count, err := strconv.Atoi(args[0]); err == nil {
+		if count < 1 {
+			return 0, "", errors.New("sample count must be a positive integer")
+		}
+		sampleCount = count
+		if len(args) == 2 {
+			templateName = args[1]
+		}
+		return sampleCount, templateName, nil
+	}
+
+	if len(args) == 2 {
+		return 0, "", errors.New("if sample count is provided, it must come before the template name")
+	}
+
+	templateName = args[0]
+	return sampleCount, templateName, nil
+}
+
+func readTemplate(root, templateName string) ([]byte, error) {
+	templateFile := filepath.Join(root, appDir, "templates", normalizeTemplateName(templateName))
 	data, err := os.ReadFile(templateFile)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, errors.New("workspace not initialized; run 'cpx init' first")
+		if templateName == "" {
+			return nil, errors.New("workspace not initialized; run 'cpx init' first")
+		}
+		return nil, fmt.Errorf("missing template: %s", templateFile)
 	}
 	return data, err
 }
@@ -178,13 +222,13 @@ func nextSampleNumber(samplesDir string) (int, error) {
 	return maxSample + 1, nil
 }
 
-func cmdNew(root, problem string, sampleCount int, stdout io.Writer) error {
+func cmdNew(root, problem string, sampleCount int, templateName string, stdout io.Writer) error {
 	cfg, err := readConfig(root)
 	if err != nil {
 		return err
 	}
 
-	template, err := readTemplate(root)
+	template, err := readTemplate(root, templateName)
 	if err != nil {
 		return err
 	}
