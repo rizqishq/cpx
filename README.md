@@ -23,6 +23,8 @@ Or with curl:
 curl -fsSL https://raw.githubusercontent.com/rizqishq/cpx/master/install.sh | sh
 ```
 
+You can also download prebuilt binaries from the GitHub releases page.
+
 ## Quick Start
 
 Initialize a workspace:
