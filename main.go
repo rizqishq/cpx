@@ -6,6 +6,8 @@ import (
 	"os"
 )
 
+var version = "dev"
+
 const (
 	appDir       = ".cpx"
 	configPath   = ".cpx/config.json"
@@ -63,7 +65,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 	switch args[0] {
 	case "init":
 		if len(args) != 1 {
-			fmt.Fprintln(stderr, "Error: init does not accept arguments")
+			fmt.Fprintf(stderr, "Error: init does not accept arguments\n\nusage: cpx init\n")
 			return 1
 		}
 		if err := cmdInit(cwd, stdout); err != nil {
@@ -73,12 +75,12 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	case "new":
 		if len(args) < 2 || len(args) > 4 {
-			fmt.Fprintln(stderr, "Error: new requires a problem name, an optional sample count, and an optional template")
+			fmt.Fprintf(stderr, "Error: invalid arguments for new\n\nusage: cpx new <problem> [count] [template]\nexample:\n  cpx new a\n  cpx new b 3\n  cpx new c debug\n  cpx new d 2 debug\n")
 			return 1
 		}
 		sampleCount, templateName, err := parseNewArgs(args[2:])
 		if err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "Error: %v\n\nusage: cpx new <problem> [count] [template]\n", err)
 			return 1
 		}
 		if err := cmdNew(cwd, args[1], sampleCount, templateName, stdout); err != nil {
@@ -88,12 +90,12 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	case "s":
 		if len(args) < 2 || len(args) > 3 {
-			fmt.Fprintln(stderr, "Error: s requires a problem name and an optional sample count")
+			fmt.Fprintf(stderr, "Error: invalid arguments for s\n\nusage: cpx s <problem> [count]\nexample:\n  cpx s a\n  cpx s a 2\n")
 			return 1
 		}
 		sampleCount, err := parseSampleCountArg(args[2:])
 		if err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "Error: %v\n\nusage: cpx s <problem> [count]\n", err)
 			return 1
 		}
 		if err := cmdAddSamples(cwd, args[1], sampleCount, stdout); err != nil {
@@ -103,7 +105,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	case "run":
 		if len(args) != 2 {
-			fmt.Fprintln(stderr, "Error: run requires a problem name")
+			fmt.Fprintf(stderr, "Error: run requires exactly one problem name\n\nusage: cpx run <problem>\nexample:\n  cpx run a\n")
 			return 1
 		}
 		if err := cmdRun(cwd, args[1], stdout); err != nil {
@@ -111,8 +113,18 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			return 1
 		}
 		return 0
+	case "version":
+		if len(args) != 1 {
+			fmt.Fprintf(stderr, "Error: version does not accept arguments\n\nusage: cpx version\n")
+			return 1
+		}
+		if _, err := fmt.Fprintf(stdout, "cpx %s\n", version); err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
+		}
+		return 0
 	default:
-		fmt.Fprintln(stderr, "Error: unknown command")
+		fmt.Fprintf(stderr, "Error: unknown command %q\n\nRun `cpx help` to see available commands.\n", args[0])
 		return 1
 	}
 }
@@ -125,4 +137,12 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  new <problem> [count] [template] create a new problem folder")
 	fmt.Fprintln(w, "  s <problem> [count]              add sample files to a problem")
 	fmt.Fprintln(w, "  run <problem>                    compile and test a problem")
+	fmt.Fprintln(w, "  version                          print the installed cpx version")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "examples:")
+	fmt.Fprintln(w, "  cpx init")
+	fmt.Fprintln(w, "  cpx new a")
+	fmt.Fprintln(w, "  cpx new b 3")
+	fmt.Fprintln(w, "  cpx new c debug")
+	fmt.Fprintln(w, "  cpx run a")
 }

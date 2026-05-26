@@ -130,6 +130,20 @@ func sourceFileName(cfg config) string {
 	}
 }
 
+func validateProblemName(problem string) error {
+	name := strings.TrimSpace(problem)
+	if name == "" {
+		return errors.New("problem name must not be empty")
+	}
+	if name == "." || name == ".." {
+		return errors.New("problem name must not be . or ..")
+	}
+	if filepath.Base(name) != name || strings.ContainsAny(name, `/\`) {
+		return errors.New("problem name must be a simple folder name, not a path")
+	}
+	return nil
+}
+
 func parseNewArgs(args []string) (int, string, error) {
 	if len(args) == 0 {
 		return 1, "", nil
@@ -167,7 +181,7 @@ func readTemplate(root, templateName string) ([]byte, error) {
 		if templateName == "" {
 			return nil, errors.New("workspace not initialized; run 'cpx init' first")
 		}
-		return nil, fmt.Errorf("missing template: %s", templateFile)
+		return nil, fmt.Errorf("missing template %q; expected %s", templateName, templateFile)
 	}
 	return data, err
 }
@@ -223,6 +237,10 @@ func nextSampleNumber(samplesDir string) (int, error) {
 }
 
 func cmdNew(root, problem string, sampleCount int, templateName string, stdout io.Writer) error {
+	if err := validateProblemName(problem); err != nil {
+		return err
+	}
+
 	cfg, err := readConfig(root)
 	if err != nil {
 		return err
@@ -255,6 +273,10 @@ func cmdNew(root, problem string, sampleCount int, templateName string, stdout i
 }
 
 func cmdAddSamples(root, problem string, sampleCount int, stdout io.Writer) error {
+	if err := validateProblemName(problem); err != nil {
+		return err
+	}
+
 	samplesDir := filepath.Join(root, problem, "samples")
 	if _, err := os.Stat(samplesDir); err != nil {
 		if errors.Is(err, os.ErrNotExist) {

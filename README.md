@@ -69,6 +69,12 @@ Run samples:
 cpx run a # compile a/main.cpp and check it against all samples in a/samples
 ```
 
+Check the installed version:
+
+```bash
+cpx version # print the installed cpx version
+```
+
 After `cpx new a`, the workspace looks like this:
 
 ```text
@@ -137,6 +143,11 @@ cpx run a # this should print PASS for sample 1
 - `cpx run <problem>`
   Compile the problem and compare program output against all sample outputs.
   Example: `cpx run a`
+- `cpx version`
+  Print the installed `cpx` version.
+
+Problem names should be simple folder names such as `a`, `b`, or `sum`.
+Paths like `../a` or `contest/a` are intentionally rejected.
 
 ## Config
 

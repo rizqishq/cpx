@@ -114,6 +114,10 @@ func tempBinaryPath(tempDir, problemDir string) string {
 }
 
 func cmdRun(root, problem string, stdout io.Writer) error {
+	if err := validateProblemName(problem); err != nil {
+		return err
+	}
+
 	cfg, err := readConfig(root)
 	if err != nil {
 		return err
