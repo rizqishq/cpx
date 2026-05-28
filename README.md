@@ -11,19 +11,31 @@ A minimal Go-based CLI for local competitive programming workflows.
 
 ## Install
 
-You can install `cpx` directly with Go:
-
-```bash
-go install github.com/rizqishq/cpx@latest
-```
-
-Or with curl:
+Recommended stable install on Linux/macOS:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rizqishq/cpx/master/install.sh | sh
 ```
 
-You can also download prebuilt binaries from the GitHub releases page.
+Stable install on Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/rizqishq/cpx/master/install.ps1 | iex
+```
+
+Install a specific release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rizqishq/cpx/master/install.sh | env CPX_VERSION=v0.0.3 sh
+```
+
+```powershell
+$env:CPX_VERSION = "v0.0.3"
+irm https://raw.githubusercontent.com/rizqishq/cpx/master/install.ps1 | iex
+Remove-Item Env:CPX_VERSION
+```
+
+You can also download prebuilt binaries directly from the GitHub releases page.
 
 ## Quick Start
 
@@ -67,6 +79,12 @@ Run samples:
 
 ```bash
 cpx run a # compile a/main.cpp and check it against all samples in a/samples
+```
+
+Check the workspace and compiler setup:
+
+```bash
+cpx doctor # verify config, templates, and compiler detection
 ```
 
 Check the installed version:
@@ -142,7 +160,10 @@ cpx run a # this should print PASS for sample 1
   Example: `cpx s a 2`
 - `cpx run <problem>`
   Compile the problem and compare program output against all sample outputs.
+  `cpx run` stops at the first failing sample and skips the rest.
   Example: `cpx run a`
+- `cpx doctor`
+  Check whether the workspace files, templates, and C++ compiler setup look healthy.
 - `cpx version`
   Print the installed `cpx` version.
 
