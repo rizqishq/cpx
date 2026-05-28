@@ -58,7 +58,8 @@ resolve_tag() {
 os="$(detect_os)"
 arch="$(detect_arch)"
 tag="$(resolve_tag)"
-asset="cpx_${tag}_${os}_${arch}.tar.gz"
+asset_version="${tag#v}"
+asset="cpx_${asset_version}_${os}_${arch}.tar.gz"
 download_url="https://github.com/$REPO/releases/download/$tag/$asset"
 
 tmp_dir="$(mktemp -d)"

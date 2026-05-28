@@ -37,8 +37,9 @@ function Resolve-Arch {
 }
 
 $tag = Resolve-Tag -RequestedVersion $Version
+$assetVersion = $tag.TrimStart("v")
 $arch = Resolve-Arch
-$asset = "cpx_${tag}_windows_${arch}.zip"
+$asset = "cpx_${assetVersion}_windows_${arch}.zip"
 $downloadUrl = "https://github.com/$repo/releases/download/$tag/$asset"
 $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ("cpx-install-" + [System.Guid]::NewGuid().ToString("N"))
 $zipPath = Join-Path $tempDir $asset
