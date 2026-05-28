@@ -38,6 +38,79 @@ func formatRunOutput(value string) string {
 	return strings.Join(lines, "\n")
 }
 
+func formatRunLine(value string) string {
+	if value == "" {
+		return "<empty>"
+	}
+	return value
+}
+
+type outputDifference struct {
+	line         int
+	column       int
+	expectedLine string
+	actualLine   string
+}
+
+func splitOutputLines(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, "\n")
+}
+
+func firstDifferingColumn(expected, actual string) int {
+	runesExpected := []rune(expected)
+	runesActual := []rune(actual)
+	limit := len(runesExpected)
+	if len(runesActual) < limit {
+		limit = len(runesActual)
+	}
+	for index := 0; index < limit; index++ {
+		if runesExpected[index] != runesActual[index] {
+			return index + 1
+		}
+	}
+	return limit + 1
+}
+
+func firstOutputDifference(expected, actual string) outputDifference {
+	expectedLines := splitOutputLines(expected)
+	actualLines := splitOutputLines(actual)
+	limit := len(expectedLines)
+	if len(actualLines) < limit {
+		limit = len(actualLines)
+	}
+
+	for index := 0; index < limit; index++ {
+		if expectedLines[index] == actualLines[index] {
+			continue
+		}
+		return outputDifference{
+			line:         index + 1,
+			column:       firstDifferingColumn(expectedLines[index], actualLines[index]),
+			expectedLine: expectedLines[index],
+			actualLine:   actualLines[index],
+		}
+	}
+
+	if len(expectedLines) > len(actualLines) {
+		return outputDifference{
+			line:         len(actualLines) + 1,
+			column:       1,
+			expectedLine: expectedLines[len(actualLines)],
+			actualLine:   "",
+		}
+	}
+
+	return outputDifference{
+		line:         len(expectedLines) + 1,
+		column:       1,
+		expectedLine: "",
+		actualLine:   actualLines[len(expectedLines)],
+	}
+}
+
 func samplePairs(samplesDir string) ([][2]string, error) {
 	entries, err := os.ReadDir(samplesDir)
 	if err != nil {
@@ -192,6 +265,16 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			return err
 		}
 		if status == "FAIL" {
+			diff := firstOutputDifference(expectedNormalized, actualNormalized)
+			if _, err := fmt.Fprintf(stdout, "  First difference at line %d, column %d\n", diff.line, diff.column); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(stdout, "  Expected line: %s\n", formatRunLine(diff.expectedLine)); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(stdout, "  Actual line:   %s\n", formatRunLine(diff.actualLine)); err != nil {
+				return err
+			}
 			if _, err := fmt.Fprintf(stdout, "  Expected:\n%s\n", formatRunOutput(expectedNormalized)); err != nil {
 				return err
 			}
