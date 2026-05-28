@@ -81,6 +81,12 @@ Run samples:
 cpx run a # compile a/main.cpp and check it against all samples in a/samples
 ```
 
+Check the workspace and compiler setup:
+
+```bash
+cpx doctor # verify config, templates, and compiler detection
+```
+
 Check the installed version:
 
 ```bash
@@ -155,6 +161,8 @@ cpx run a # this should print PASS for sample 1
 - `cpx run <problem>`
   Compile the problem and compare program output against all sample outputs.
   Example: `cpx run a`
+- `cpx doctor`
+  Check whether the workspace files, templates, and C++ compiler setup look healthy.
 - `cpx version`
   Print the installed `cpx` version.
 

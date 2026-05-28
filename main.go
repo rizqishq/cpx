@@ -113,6 +113,16 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			return 1
 		}
 		return 0
+	case "doctor":
+		if len(args) != 1 {
+			fmt.Fprintf(stderr, "Error: doctor does not accept arguments\n\nusage: cpx doctor\n")
+			return 1
+		}
+		if err := cmdDoctor(cwd, stdout); err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
+		}
+		return 0
 	case "version":
 		if len(args) != 1 {
 			fmt.Fprintf(stderr, "Error: version does not accept arguments\n\nusage: cpx version\n")
@@ -137,6 +147,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  new <problem> [count] [template] create a new problem folder")
 	fmt.Fprintln(w, "  s <problem> [count]              add sample files to a problem")
 	fmt.Fprintln(w, "  run <problem>                    compile and test a problem")
+	fmt.Fprintln(w, "  doctor                           check workspace and compiler setup")
 	fmt.Fprintln(w, "  version                          print the installed cpx version")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "examples:")
@@ -144,5 +155,6 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  cpx new a")
 	fmt.Fprintln(w, "  cpx new b 3")
 	fmt.Fprintln(w, "  cpx new c debug")
+	fmt.Fprintln(w, "  cpx doctor")
 	fmt.Fprintln(w, "  cpx run a")
 }
