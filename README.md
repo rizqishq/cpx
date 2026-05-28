@@ -160,6 +160,7 @@ cpx run a # this should print PASS for sample 1
   Example: `cpx s a 2`
 - `cpx run <problem>`
   Compile the problem and compare program output against all sample outputs.
+  `cpx run` stops at the first failing sample and skips the rest.
   Example: `cpx run a`
 - `cpx doctor`
   Check whether the workspace files, templates, and C++ compiler setup look healthy.

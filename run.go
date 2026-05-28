@@ -198,14 +198,21 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			if _, err := fmt.Fprintf(stdout, "  Actual:\n%s\n", formatRunOutput(actualNormalized)); err != nil {
 				return err
 			}
+			remaining := len(pairs) - index - 1
+			if remaining > 0 {
+				if _, err := fmt.Fprintf(stdout, "Skipped %d remaining sample(s) after the first failure\n", remaining); err != nil {
+					return err
+				}
+			}
+			if _, err := fmt.Fprintf(stdout, "Summary: %d/%d passed\n", passedCount, len(pairs)); err != nil {
+				return err
+			}
+			return errors.New("one or more samples failed")
 		}
 	}
 
 	if _, err := fmt.Fprintf(stdout, "Summary: %d/%d passed\n", passedCount, len(pairs)); err != nil {
 		return err
-	}
-	if passedCount != len(pairs) {
-		return errors.New("one or more samples failed")
 	}
 	return nil
 }
