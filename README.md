@@ -181,12 +181,14 @@ cpx run a # this should print PASS for sample 1
   Run this once before using `new`, `s`, or `run` in a workspace.
 - `cpx new <problem> [count]`
   Create a problem folder and `count` sample pairs. The default count is `1`.
+  If scaffolding fails, `cpx` cleans up the partially created problem directory.
   Example: `cpx new a`
 - `cpx new <problem> [count] [template]`
   Create a problem with an optional named template from `.cpx/templates/`.
   Examples: `cpx new a debug`, `cpx new a 3 debug`
 - `cpx contest <problem>... [-c <count>] [-t <template>]`
   Create multiple problem folders at once, optionally choosing how many sample pairs each one gets and which template to copy.
+  If scaffolding fails partway through, `cpx` removes any partially created contest problem directories.
   Examples: `cpx contest a b c d`, `cpx contest a b c d -c 3`, `cpx contest a b c d -t debug`
 - `cpx s <problem> [count]`
   Add `count` new sample pairs to an existing problem. The default count is `1`.
