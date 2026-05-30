@@ -174,6 +174,26 @@ func parseNewArgs(args []string) (int, string, error) {
 	return sampleCount, templateName, nil
 }
 
+func parseContestArgs(args []string) ([]string, error) {
+	if len(args) == 0 {
+		return nil, errors.New("contest requires at least one problem name")
+	}
+
+	seen := make(map[string]struct{}, len(args))
+	problems := make([]string, 0, len(args))
+	for _, problem := range args {
+		if err := validateProblemName(problem); err != nil {
+			return nil, err
+		}
+		if _, ok := seen[problem]; ok {
+			return nil, fmt.Errorf("duplicate problem name %q", problem)
+		}
+		seen[problem] = struct{}{}
+		problems = append(problems, problem)
+	}
+	return problems, nil
+}
+
 func readTemplate(root, templateName string) ([]byte, error) {
 	templateFile := filepath.Join(root, appDir, "templates", normalizeTemplateName(templateName))
 	data, err := os.ReadFile(templateFile)
@@ -236,6 +256,23 @@ func nextSampleNumber(samplesDir string) (int, error) {
 	return maxSample + 1, nil
 }
 
+func createProblem(problemDir, sourcePath string, template []byte, sampleCount int) error {
+	samplesDir := filepath.Join(problemDir, "samples")
+	if err := os.Mkdir(problemDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.Mkdir(samplesDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(sourcePath, template, 0o644); err != nil {
+		return err
+	}
+	if err := createSampleFiles(samplesDir, 1, sampleCount); err != nil {
+		return err
+	}
+	return nil
+}
+
 func cmdNew(root, problem string, sampleCount int, templateName string, stdout io.Writer) error {
 	if err := validateProblemName(problem); err != nil {
 		return err
@@ -252,23 +289,47 @@ func cmdNew(root, problem string, sampleCount int, templateName string, stdout i
 	}
 
 	problemDir := filepath.Join(root, problem)
-	samplesDir := filepath.Join(problemDir, "samples")
-	if err := os.Mkdir(problemDir, 0o755); err != nil {
-		return err
-	}
-	if err := os.Mkdir(samplesDir, 0o755); err != nil {
-		return err
-	}
-
 	sourcePath := filepath.Join(problemDir, sourceFileName(cfg))
-	if err := os.WriteFile(sourcePath, template, 0o644); err != nil {
-		return err
-	}
-	if err := createSampleFiles(samplesDir, 1, sampleCount); err != nil {
+	if err := createProblem(problemDir, sourcePath, template, sampleCount); err != nil {
 		return err
 	}
 
 	_, err = fmt.Fprintf(stdout, "Created problem at %s\n", problemDir)
+	return err
+}
+
+func cmdContest(root string, problems []string, stdout io.Writer) error {
+	cfg, err := readConfig(root)
+	if err != nil {
+		return err
+	}
+
+	template, err := readTemplate(root, "")
+	if err != nil {
+		return err
+	}
+
+	for _, problem := range problems {
+		problemDir := filepath.Join(root, problem)
+		if _, err := os.Stat(problemDir); err == nil {
+			return fmt.Errorf("problem already exists: %s", problemDir)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+
+	for _, problem := range problems {
+		problemDir := filepath.Join(root, problem)
+		sourcePath := filepath.Join(problemDir, sourceFileName(cfg))
+		if err := createProblem(problemDir, sourcePath, template, 1); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(stdout, "Created problem at %s\n", problemDir); err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprintf(stdout, "Created %d contest problem(s)\n", len(problems))
 	return err
 }
 

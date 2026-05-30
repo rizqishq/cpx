@@ -88,6 +88,17 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			return 1
 		}
 		return 0
+	case "contest":
+		problems, err := parseContestArgs(args[1:])
+		if err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n\nusage: cpx contest <problem>...\nexample:\n  cpx contest a b c d\n", err)
+			return 1
+		}
+		if err := cmdContest(cwd, problems, stdout); err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
+		}
+		return 0
 	case "s":
 		if len(args) < 2 || len(args) > 3 {
 			fmt.Fprintf(stderr, "Error: invalid arguments for s\n\nusage: cpx s <problem> [count]\nexample:\n  cpx s a\n  cpx s a 2\n")
@@ -145,6 +156,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "commands:")
 	fmt.Fprintln(w, "  init                             initialize competitive programming workspace")
 	fmt.Fprintln(w, "  new <problem> [count] [template] create a new problem folder")
+	fmt.Fprintln(w, "  contest <problem>...             create multiple problem folders at once")
 	fmt.Fprintln(w, "  s <problem> [count]              add sample files to a problem")
 	fmt.Fprintln(w, "  run <problem>                    compile and test a problem")
 	fmt.Fprintln(w, "  doctor                           check workspace and compiler setup")
@@ -153,6 +165,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "examples:")
 	fmt.Fprintln(w, "  cpx init")
 	fmt.Fprintln(w, "  cpx new a")
+	fmt.Fprintln(w, "  cpx contest a b c d")
 	fmt.Fprintln(w, "  cpx new b 3")
 	fmt.Fprintln(w, "  cpx new c debug")
 	fmt.Fprintln(w, "  cpx doctor")
