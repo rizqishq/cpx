@@ -124,6 +124,16 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			return 1
 		}
 		return 0
+	case "watch":
+		if len(args) != 2 {
+			fmt.Fprintf(stderr, "Error: watch requires exactly one problem name\n\nusage: cpx watch <problem>\nexample:\n  cpx watch a\n")
+			return 1
+		}
+		if err := cmdWatch(cwd, args[1], stdout); err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
+		}
+		return 0
 	case "doctor":
 		if len(args) != 1 {
 			fmt.Fprintf(stderr, "Error: doctor does not accept arguments\n\nusage: cpx doctor\n")
@@ -159,6 +169,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  contest <problem>...             create multiple problem folders at once")
 	fmt.Fprintln(w, "  s <problem> [count]              add sample files to a problem")
 	fmt.Fprintln(w, "  run <problem>                    compile and test a problem")
+	fmt.Fprintln(w, "  watch <problem>                  rerun a problem whenever source or samples change")
 	fmt.Fprintln(w, "  doctor                           check workspace and compiler setup")
 	fmt.Fprintln(w, "  version                          print the installed cpx version")
 	fmt.Fprintln(w)
@@ -168,6 +179,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  cpx contest a b c d")
 	fmt.Fprintln(w, "  cpx new b 3")
 	fmt.Fprintln(w, "  cpx new c debug")
+	fmt.Fprintln(w, "  cpx watch a")
 	fmt.Fprintln(w, "  cpx doctor")
 	fmt.Fprintln(w, "  cpx run a")
 }

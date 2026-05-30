@@ -87,6 +87,12 @@ Run samples:
 cpx run a # compile a/main.cpp and check it against all samples in a/samples
 ```
 
+Watch a problem and rerun it automatically:
+
+```bash
+cpx watch a # rerun cpx run a whenever main.cpp or samples change
+```
+
 Check the workspace and compiler setup:
 
 ```bash
@@ -171,6 +177,10 @@ cpx run a # this should print PASS for sample 1
   Compile the problem and compare program output against all sample outputs.
   `cpx run` stops at the first failing sample, points out the first differing line, and skips the rest.
   Example: `cpx run a`
+- `cpx watch <problem>`
+  Run a problem once, then rerun it automatically whenever `main.cpp` or any sample file changes.
+  Stop watching with `Ctrl+C`.
+  Example: `cpx watch a`
 - `cpx doctor`
   Check whether the workspace files, templates, and C++ compiler setup look healthy.
 - `cpx version`
