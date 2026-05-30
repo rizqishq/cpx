@@ -89,12 +89,12 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		}
 		return 0
 	case "contest":
-		problems, err := parseContestArgs(args[1:])
+		problems, sampleCount, templateName, err := parseContestArgs(args[1:])
 		if err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n\nusage: cpx contest <problem>...\nexample:\n  cpx contest a b c d\n", err)
+			fmt.Fprintf(stderr, "Error: %v\n\nusage: cpx contest <problem>... [-c <count>] [-t <template>]\nexample:\n  cpx contest a b c d\n  cpx contest a b c d -c 3\n  cpx contest a b c d --template debug\n  cpx contest a b c d -c 2 -t debug\n", err)
 			return 1
 		}
-		if err := cmdContest(cwd, problems, stdout); err != nil {
+		if err := cmdContest(cwd, problems, sampleCount, templateName, stdout); err != nil {
 			fmt.Fprintf(stderr, "Error: %v\n", err)
 			return 1
 		}
@@ -166,7 +166,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "commands:")
 	fmt.Fprintln(w, "  init                             initialize competitive programming workspace")
 	fmt.Fprintln(w, "  new <problem> [count] [template] create a new problem folder")
-	fmt.Fprintln(w, "  contest <problem>...             create multiple problem folders at once")
+	fmt.Fprintln(w, "  contest <problem>... [-c count] [-t template] create multiple problem folders at once")
 	fmt.Fprintln(w, "  s <problem> [count]              add sample files to a problem")
 	fmt.Fprintln(w, "  run <problem>                    compile and test a problem")
 	fmt.Fprintln(w, "  watch <problem>                  rerun a problem whenever source or samples change")
@@ -177,6 +177,8 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  cpx init")
 	fmt.Fprintln(w, "  cpx new a")
 	fmt.Fprintln(w, "  cpx contest a b c d")
+	fmt.Fprintln(w, "  cpx contest a b c d -c 3")
+	fmt.Fprintln(w, "  cpx contest a b c d -t debug")
 	fmt.Fprintln(w, "  cpx new b 3")
 	fmt.Fprintln(w, "  cpx new c debug")
 	fmt.Fprintln(w, "  cpx watch a")

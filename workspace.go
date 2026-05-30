@@ -174,24 +174,72 @@ func parseNewArgs(args []string) (int, string, error) {
 	return sampleCount, templateName, nil
 }
 
-func parseContestArgs(args []string) ([]string, error) {
+func parseContestArgs(args []string) ([]string, int, string, error) {
 	if len(args) == 0 {
-		return nil, errors.New("contest requires at least one problem name")
+		return nil, 0, "", errors.New("contest requires at least one problem name")
 	}
+
+	sampleCount := 1
+	templateName := ""
+	countFlagSeen := false
+	templateFlagSeen := false
 
 	seen := make(map[string]struct{}, len(args))
 	problems := make([]string, 0, len(args))
-	for _, problem := range args {
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		switch arg {
+		case "-c", "--count":
+			if countFlagSeen {
+				return nil, 0, "", errors.New("contest sample count flag may only be provided once")
+			}
+			if index+1 >= len(args) {
+				return nil, 0, "", fmt.Errorf("missing value for %s", arg)
+			}
+			count, err := strconv.Atoi(args[index+1])
+			if err != nil || count < 1 {
+				return nil, 0, "", errors.New("sample count must be a positive integer")
+			}
+			sampleCount = count
+			countFlagSeen = true
+			index++
+			continue
+		case "-t", "--template":
+			if templateFlagSeen {
+				return nil, 0, "", errors.New("contest template flag may only be provided once")
+			}
+			if index+1 >= len(args) {
+				return nil, 0, "", fmt.Errorf("missing value for %s", arg)
+			}
+			if strings.TrimSpace(args[index+1]) == "" {
+				return nil, 0, "", errors.New("template name must not be empty")
+			}
+			templateName = args[index+1]
+			templateFlagSeen = true
+			index++
+			continue
+		}
+
+		if strings.HasPrefix(arg, "-") {
+			return nil, 0, "", fmt.Errorf("unknown contest flag %q", arg)
+		}
+
+		problem := arg
 		if err := validateProblemName(problem); err != nil {
-			return nil, err
+			return nil, 0, "", err
 		}
 		if _, ok := seen[problem]; ok {
-			return nil, fmt.Errorf("duplicate problem name %q", problem)
+			return nil, 0, "", fmt.Errorf("duplicate problem name %q", problem)
 		}
 		seen[problem] = struct{}{}
 		problems = append(problems, problem)
 	}
-	return problems, nil
+
+	if len(problems) == 0 {
+		return nil, 0, "", errors.New("contest requires at least one problem name")
+	}
+
+	return problems, sampleCount, templateName, nil
 }
 
 func readTemplate(root, templateName string) ([]byte, error) {
@@ -298,13 +346,13 @@ func cmdNew(root, problem string, sampleCount int, templateName string, stdout i
 	return err
 }
 
-func cmdContest(root string, problems []string, stdout io.Writer) error {
+func cmdContest(root string, problems []string, sampleCount int, templateName string, stdout io.Writer) error {
 	cfg, err := readConfig(root)
 	if err != nil {
 		return err
 	}
 
-	template, err := readTemplate(root, "")
+	template, err := readTemplate(root, templateName)
 	if err != nil {
 		return err
 	}
@@ -321,7 +369,7 @@ func cmdContest(root string, problems []string, stdout io.Writer) error {
 	for _, problem := range problems {
 		problemDir := filepath.Join(root, problem)
 		sourcePath := filepath.Join(problemDir, sourceFileName(cfg))
-		if err := createProblem(problemDir, sourcePath, template, 1); err != nil {
+		if err := createProblem(problemDir, sourcePath, template, sampleCount); err != nil {
 			return err
 		}
 		if _, err := fmt.Fprintf(stdout, "Created problem at %s\n", problemDir); err != nil {

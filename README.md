@@ -69,6 +69,24 @@ Scaffold multiple contest problems at once:
 cpx contest a b c d # create a/, b/, c/, and d/ with default samples
 ```
 
+Scaffold multiple contest problems with more sample pairs:
+
+```bash
+cpx contest a b c d -c 3 # create each problem with 3 sample pairs
+```
+
+Scaffold multiple contest problems with a named template:
+
+```bash
+cpx contest a b c d -t debug # use .cpx/templates/debug.cpp for each problem
+```
+
+Use both contest flags together:
+
+```bash
+cpx contest a b c d --count 2 --template debug
+```
+
 Create a problem with both sample count and template:
 
 ```bash
@@ -167,9 +185,9 @@ cpx run a # this should print PASS for sample 1
 - `cpx new <problem> [count] [template]`
   Create a problem with an optional named template from `.cpx/templates/`.
   Examples: `cpx new a debug`, `cpx new a 3 debug`
-- `cpx contest <problem>...`
-  Create multiple problem folders at once using the default template and one sample pair each.
-  Example: `cpx contest a b c d`
+- `cpx contest <problem>... [-c <count>] [-t <template>]`
+  Create multiple problem folders at once, optionally choosing how many sample pairs each one gets and which template to copy.
+  Examples: `cpx contest a b c d`, `cpx contest a b c d -c 3`, `cpx contest a b c d -t debug`
 - `cpx s <problem> [count]`
   Add `count` new sample pairs to an existing problem. The default count is `1`.
   Example: `cpx s a 2`
