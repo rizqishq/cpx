@@ -305,6 +305,13 @@ func nextSampleNumber(samplesDir string) (int, error) {
 }
 
 func createProblem(problemDir, sourcePath string, template []byte, sampleCount int) error {
+	created := false
+	defer func() {
+		if !created {
+			_ = os.RemoveAll(problemDir)
+		}
+	}()
+
 	samplesDir := filepath.Join(problemDir, "samples")
 	if err := os.Mkdir(problemDir, 0o755); err != nil {
 		return err
@@ -318,7 +325,14 @@ func createProblem(problemDir, sourcePath string, template []byte, sampleCount i
 	if err := createSampleFiles(samplesDir, 1, sampleCount); err != nil {
 		return err
 	}
+	created = true
 	return nil
+}
+
+func cleanupProblems(root string, problems []string) {
+	for _, problem := range problems {
+		_ = os.RemoveAll(filepath.Join(root, problem))
+	}
 }
 
 func cmdNew(root, problem string, sampleCount int, templateName string, stdout io.Writer) error {
@@ -343,6 +357,9 @@ func cmdNew(root, problem string, sampleCount int, templateName string, stdout i
 	}
 
 	_, err = fmt.Fprintf(stdout, "Created problem at %s\n", problemDir)
+	if err != nil {
+		cleanupProblems(root, []string{problem})
+	}
 	return err
 }
 
@@ -366,13 +383,17 @@ func cmdContest(root string, problems []string, sampleCount int, templateName st
 		}
 	}
 
+	createdProblems := make([]string, 0, len(problems))
 	for _, problem := range problems {
 		problemDir := filepath.Join(root, problem)
 		sourcePath := filepath.Join(problemDir, sourceFileName(cfg))
 		if err := createProblem(problemDir, sourcePath, template, sampleCount); err != nil {
+			cleanupProblems(root, createdProblems)
 			return err
 		}
+		createdProblems = append(createdProblems, problem)
 		if _, err := fmt.Fprintf(stdout, "Created problem at %s\n", problemDir); err != nil {
+			cleanupProblems(root, createdProblems)
 			return err
 		}
 	}
