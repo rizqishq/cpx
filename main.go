@@ -277,33 +277,58 @@ func normalizeOutput(value string) string {
 	return strings.Join(lines, "\n")
 }
 
+func formatRunOutput(value string) string {
+	if value == "" {
+		return "    <empty>"
+	}
+
+	lines := strings.Split(value, "\n")
+	for index, line := range lines {
+		lines[index] = "    " + line
+	}
+	return strings.Join(lines, "\n")
+}
+
 func samplePairs(samplesDir string) ([][2]string, error) {
 	entries, err := os.ReadDir(samplesDir)
 	if err != nil {
 		return nil, err
 	}
 
-	var inputs []string
+	type sampleInput struct {
+		number int
+		path   string
+	}
+
+	var inputs []sampleInput
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".in") {
 			continue
 		}
-		if strings.HasSuffix(entry.Name(), ".in") {
-			inputs = append(inputs, filepath.Join(samplesDir, entry.Name()))
+		base := strings.TrimSuffix(entry.Name(), ".in")
+		number, err := strconv.Atoi(base)
+		if err != nil {
+			continue
 		}
+		inputs = append(inputs, sampleInput{
+			number: number,
+			path:   filepath.Join(samplesDir, entry.Name()),
+		})
 	}
-	sort.Strings(inputs)
+	sort.Slice(inputs, func(i, j int) bool {
+		return inputs[i].number < inputs[j].number
+	})
 
 	pairs := make([][2]string, 0, len(inputs))
-	for _, inputPath := range inputs {
-		outputPath := strings.TrimSuffix(inputPath, ".in") + ".out"
+	for _, input := range inputs {
+		outputPath := strings.TrimSuffix(input.path, ".in") + ".out"
 		if _, err := os.Stat(outputPath); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				return nil, fmt.Errorf("missing sample output for %s", filepath.Base(inputPath))
+				return nil, fmt.Errorf("missing sample output for %s", filepath.Base(input.path))
 			}
 			return nil, err
 		}
-		pairs = append(pairs, [2]string{inputPath, outputPath})
+		pairs = append(pairs, [2]string{input.path, outputPath})
 	}
 	return pairs, nil
 }
@@ -385,7 +410,7 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 		return err
 	}
 
-	allPassed := true
+	passedCount := 0
 	for index, pair := range pairs {
 		actual, err := runSample(binaryPath, pair[0])
 		if err != nil {
@@ -401,30 +426,26 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 		status := "FAIL"
 		if actualNormalized == expectedNormalized {
 			status = "PASS"
-		} else {
-			allPassed = false
+			passedCount++
 		}
 
-		if _, err := fmt.Fprintf(stdout, "Sample %d: %s\n", index+1, status); err != nil {
+		if _, err := fmt.Fprintf(stdout, "Sample %d (%s): %s\n", index+1, filepath.Base(pair[0]), status); err != nil {
 			return err
 		}
 		if status == "FAIL" {
-			if _, err := fmt.Fprintln(stdout, "Expected:"); err != nil {
+			if _, err := fmt.Fprintf(stdout, "  Expected:\n%s\n", formatRunOutput(expectedNormalized)); err != nil {
 				return err
 			}
-			if _, err := fmt.Fprintln(stdout, expectedNormalized); err != nil {
-				return err
-			}
-			if _, err := fmt.Fprintln(stdout, "Actual:"); err != nil {
-				return err
-			}
-			if _, err := fmt.Fprintln(stdout, actualNormalized); err != nil {
+			if _, err := fmt.Fprintf(stdout, "  Actual:\n%s\n", formatRunOutput(actualNormalized)); err != nil {
 				return err
 			}
 		}
 	}
 
-	if !allPassed {
+	if _, err := fmt.Fprintf(stdout, "Summary: %d/%d passed\n", passedCount, len(pairs)); err != nil {
+		return err
+	}
+	if passedCount != len(pairs) {
 		return errors.New("one or more samples failed")
 	}
 	return nil
