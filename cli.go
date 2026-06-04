@@ -30,16 +30,16 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		}
 		return 0
 	case "new":
-		if len(args) < 2 || len(args) > 3 {
-			fmt.Fprintln(stderr, "Error: new requires a problem name and an optional sample count")
+		if len(args) < 2 || len(args) > 4 {
+			fmt.Fprintln(stderr, "Error: new requires a problem name, with optional sample count and template name")
 			return 1
 		}
-		sampleCount, err := parseSampleCountArg(args[2:])
+		options, err := parseNewOptions(args[2:])
 		if err != nil {
 			fmt.Fprintf(stderr, "Error: %v\n", err)
 			return 1
 		}
-		if err := cmdNew(cwd, args[1], sampleCount, stdout); err != nil {
+		if err := cmdNew(cwd, args[1], options, stdout); err != nil {
 			fmt.Fprintf(stderr, "Error: %v\n", err)
 			return 1
 		}
@@ -79,8 +79,8 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "usage: cpx [command]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "commands:")
-	fmt.Fprintln(w, "  init          initialize competitive programming workspace")
-	fmt.Fprintln(w, "  new <problem> [count] create a new problem folder")
-	fmt.Fprintln(w, "  s <problem> [count]   add sample files to a problem")
-	fmt.Fprintln(w, "  run <problem>         compile and test a problem")
+	fmt.Fprintln(w, "  init                    initialize competitive programming workspace")
+	fmt.Fprintln(w, "  new <problem> [count] [template] create a new problem folder")
+	fmt.Fprintln(w, "  s <problem> [count]     add sample files to a problem")
+	fmt.Fprintln(w, "  run <problem>           compile and test a problem")
 }
