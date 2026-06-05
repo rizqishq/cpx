@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+type newOptions struct {
+	SampleCount int
+	Template    string
+}
+
 func cmdInit(root string, stdout io.Writer) error {
 	if err := ensureWorkspace(root); err != nil {
 		return err
@@ -27,6 +32,42 @@ func parseSampleCountArg(args []string) (int, error) {
 		return 0, fmt.Errorf("sample count must be a positive integer")
 	}
 	return count, nil
+}
+
+func parseNewOptions(args []string) (newOptions, error) {
+	options := newOptions{SampleCount: 1}
+
+	switch len(args) {
+	case 0:
+		return options, nil
+	case 1:
+		count, err := strconv.Atoi(args[0])
+		if err == nil {
+			if count < 1 {
+				return newOptions{}, fmt.Errorf("sample count must be a positive integer")
+			}
+			options.SampleCount = count
+			return options, nil
+		}
+		options.Template = strings.TrimSpace(args[0])
+		if err := validateTemplateName(options.Template); err != nil {
+			return newOptions{}, err
+		}
+		return options, nil
+	case 2:
+		count, err := strconv.Atoi(args[0])
+		if err != nil || count < 1 {
+			return newOptions{}, fmt.Errorf("when providing both sample count and template, sample count must come first")
+		}
+		options.SampleCount = count
+		options.Template = strings.TrimSpace(args[1])
+		if err := validateTemplateName(options.Template); err != nil {
+			return newOptions{}, err
+		}
+		return options, nil
+	default:
+		return newOptions{}, fmt.Errorf("new accepts a problem name, optional sample count, and optional template name")
+	}
 }
 
 func createSampleFiles(samplesDir string, start, count int) error {
@@ -67,13 +108,18 @@ func nextSampleNumber(samplesDir string) (int, error) {
 	return maxSample + 1, nil
 }
 
-func cmdNew(root, problem string, sampleCount int, stdout io.Writer) error {
+func cmdNew(root, problem string, options newOptions, stdout io.Writer) error {
 	cfg, err := loadConfig(root)
 	if err != nil {
 		return err
 	}
 
-	template, err := readTemplate(root, cfg)
+	templateName := cfg.Template
+	if options.Template != "" {
+		templateName = options.Template
+	}
+
+	template, err := readTemplate(root, cfg, templateName)
 	if err != nil {
 		return err
 	}
@@ -95,11 +141,11 @@ func cmdNew(root, problem string, sampleCount int, stdout io.Writer) error {
 	if err := os.WriteFile(filepath.Join(problemDir, sourceName), template, 0o644); err != nil {
 		return err
 	}
-	if err := createSampleFiles(samplesDir, 1, sampleCount); err != nil {
+	if err := createSampleFiles(samplesDir, 1, options.SampleCount); err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintf(stdout, "Created problem at %s\n", problemDir)
+	_, err = fmt.Fprintf(stdout, "Created problem at %s using template %s\n", problemDir, templateName)
 	return err
 }
 

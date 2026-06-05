@@ -39,18 +39,21 @@ int main() {
 type config struct {
 	Language string `json:"language"`
 	Standard string `json:"standard"`
+	Template string `json:"template"`
 }
 
 func defaultConfig() config {
 	return config{
 		Language: "cpp",
 		Standard: "c++17",
+		Template: "main",
 	}
 }
 
 func normalizeConfig(cfg config) config {
 	cfg.Language = strings.ToLower(strings.TrimSpace(cfg.Language))
 	cfg.Standard = strings.TrimSpace(cfg.Standard)
+	cfg.Template = strings.TrimSpace(cfg.Template)
 
 	defaults := defaultConfig()
 	if cfg.Language == "" {
@@ -59,8 +62,25 @@ func normalizeConfig(cfg config) config {
 	if cfg.Standard == "" {
 		cfg.Standard = defaults.Standard
 	}
+	if cfg.Template == "" {
+		cfg.Template = defaults.Template
+	}
 
 	return cfg
+}
+
+func validateTemplateName(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return errors.New("template name must not be empty")
+	}
+	if name == "." || name == ".." {
+		return fmt.Errorf("invalid template name: %s", name)
+	}
+	if strings.ContainsRune(name, os.PathSeparator) || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return fmt.Errorf("invalid template name: %s", name)
+	}
+	return nil
 }
 
 func validateConfig(cfg config) error {
@@ -69,6 +89,9 @@ func validateConfig(cfg config) error {
 	}
 	if cfg.Standard == "" {
 		return errors.New("config standard must not be empty")
+	}
+	if err := validateTemplateName(cfg.Template); err != nil {
+		return err
 	}
 	return nil
 }
@@ -118,8 +141,21 @@ func sourceFileName(cfg config) (string, error) {
 	}
 }
 
-func templateRelativePath(cfg config) (string, error) {
-	name, err := sourceFileName(cfg)
+func templateFileName(cfg config, templateName string) (string, error) {
+	templateName = strings.TrimSpace(templateName)
+	if err := validateTemplateName(templateName); err != nil {
+		return "", err
+	}
+
+	sourceName, err := sourceFileName(cfg)
+	if err != nil {
+		return "", err
+	}
+	return templateName + filepath.Ext(sourceName), nil
+}
+
+func templateRelativePath(cfg config, templateName string) (string, error) {
+	name, err := templateFileName(cfg, templateName)
 	if err != nil {
 		return "", err
 	}
@@ -154,7 +190,7 @@ func ensureWorkspace(root string) error {
 		return err
 	}
 
-	templateRelPath, err := templateRelativePath(cfg)
+	templateRelPath, err := templateRelativePath(cfg, cfg.Template)
 	if err != nil {
 		return err
 	}
@@ -170,7 +206,7 @@ func ensureWorkspace(root string) error {
 		}
 	} else if err != nil {
 		return err
-	} else if cfg.Language == "cpp" {
+	} else if cfg.Language == "cpp" && cfg.Template == defaultConfig().Template {
 		template, err := os.ReadFile(templateFile)
 		if err != nil {
 			return err
@@ -185,15 +221,42 @@ func ensureWorkspace(root string) error {
 	return nil
 }
 
-func readTemplate(root string, cfg config) ([]byte, error) {
-	templateRelPath, err := templateRelativePath(cfg)
+func availableTemplates(root string, cfg config) ([]string, error) {
+	sourceName, err := sourceFileName(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	templatesDir := filepath.Join(root, appDir, "templates")
+	entries, err := os.ReadDir(templatesDir)
+	if err != nil {
+		return nil, err
+	}
+
+	ext := filepath.Ext(sourceName)
+	var names []string
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ext {
+			continue
+		}
+		names = append(names, strings.TrimSuffix(entry.Name(), ext))
+	}
+	return names, nil
+}
+
+func readTemplate(root string, cfg config, templateName string) ([]byte, error) {
+	templateRelPath, err := templateRelativePath(cfg, templateName)
 	if err != nil {
 		return nil, err
 	}
 
 	data, err := os.ReadFile(filepath.Join(root, templateRelPath))
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, errors.New("workspace template missing; run 'cpx init' first")
+		available, listErr := availableTemplates(root, cfg)
+		if listErr != nil || len(available) == 0 {
+			return nil, fmt.Errorf("template not found: %s", templateName)
+		}
+		return nil, fmt.Errorf("template not found: %s (available: %s)", templateName, strings.Join(available, ", "))
 	}
 	return data, err
 }

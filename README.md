@@ -5,10 +5,11 @@ A minimal Go CLI for local competitive programming workflows.
 ## Features
 
 - `cpx init` creates the `.cpx/` workspace
-- `cpx new <problem> [count]` creates a problem folder and sample pairs
+- `cpx new <problem> [count] [template]` creates a problem folder and sample pairs
 - `cpx s <problem> [count]` appends more sample pairs to an existing problem
 - `cpx run <problem>` compiles and runs the problem against saved samples
-- `.cpx/config.json` controls the active language and compiler standard
+- `.cpx/config.json` controls the active language, compiler standard, and default template
+- `.cpx/templates/` can contain multiple templates for the same language
 
 ## Requirements
 
@@ -60,7 +61,8 @@ a/
 ```json
 {
   "language": "cpp",
-  "standard": "c++17"
+  "standard": "c++17",
+  "template": "main"
 }
 ```
 
@@ -68,3 +70,28 @@ Current config fields:
 
 - `language`: currently supports `cpp`
 - `standard`: passed to the compiler as `-std=<value>` during `cpx run`
+- `template`: default template name used by `cpx new`
+
+## Multiple templates
+
+Templates live under `.cpx/templates/` and are matched by template name plus source extension.
+
+Examples:
+
+- `.cpx/templates/main.cpp`
+- `.cpx/templates/fast.cpp`
+- `.cpx/templates/debug.cpp`
+
+Use the default template from config:
+
+```bash
+cpx new a
+```
+
+Override it for one problem:
+
+```bash
+cpx new b fast
+cpx new c 3 debug
+```
+
