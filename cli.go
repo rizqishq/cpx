@@ -19,6 +19,16 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 	}
 
 	switch args[0] {
+	case "version":
+		if len(args) != 1 {
+			fmt.Fprintln(stderr, "Error: version does not accept arguments")
+			return 1
+		}
+		if err := cmdVersion(stdout); err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
+		}
+		return 0
 	case "init":
 		if len(args) != 1 {
 			fmt.Fprintln(stderr, "Error: init does not accept arguments")
@@ -79,6 +89,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "usage: cpx [command]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "commands:")
+	fmt.Fprintln(w, "  version                 print cpx version")
 	fmt.Fprintln(w, "  init                    initialize competitive programming workspace")
 	fmt.Fprintln(w, "  new <problem> [count] [template] create a new problem folder")
 	fmt.Fprintln(w, "  s <problem> [count]     add sample files to a problem")
