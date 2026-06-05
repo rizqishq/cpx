@@ -6,6 +6,8 @@ builds:
   - id: cpx
     main: .
     binary: cpx
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
     env:
       - CGO_ENABLED=0
     goos:
