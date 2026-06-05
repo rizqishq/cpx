@@ -19,16 +19,16 @@ A minimal Go CLI for local competitive programming workflows.
 
 ## Install
 
-Install with Go:
-
-```bash
-go install github.com/rizqishq/cpx@latest
-```
-
-Or with curl:
+Unix:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rizqishq/cpx/master/install.sh | sh
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/rizqishq/cpx/master/install.ps1 | iex
 ```
 
 ## Quick start
