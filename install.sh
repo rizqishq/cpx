@@ -54,9 +54,10 @@ need_cmd tar
 need_cmd mktemp
 
 version="$(resolve_version "${1:-}")"
+asset_version="${version#v}"
 os="$(resolve_os)"
 arch="$(resolve_arch)"
-archive="cpx_${version}_${os}_${arch}.tar.gz"
+archive="cpx_${asset_version}_${os}_${arch}.tar.gz"
 url="https://github.com/$OWNER/$REPO/releases/download/$version/$archive"
 
 tmp_dir="$(mktemp -d)"

@@ -32,8 +32,9 @@ function Resolve-Arch {
 }
 
 $ResolvedVersion = Resolve-Version -RequestedVersion $Version
+$AssetVersion = if ($ResolvedVersion.StartsWith("v")) { $ResolvedVersion.Substring(1) } else { $ResolvedVersion }
 $Arch = Resolve-Arch
-$Archive = "cpx_{0}_windows_{1}.zip" -f $ResolvedVersion, $Arch
+$Archive = "cpx_{0}_windows_{1}.zip" -f $AssetVersion, $Arch
 $Url = "https://github.com/$Owner/$Repo/releases/download/$ResolvedVersion/$Archive"
 
 $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
