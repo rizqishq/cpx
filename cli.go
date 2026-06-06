@@ -116,6 +116,19 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			return 1
 		}
 		return 0
+	case "watch":
+		if len(args) != 2 {
+			fmt.Fprintln(stderr, "Error: watch requires a problem name")
+			return 1
+		}
+		if err := cmdWatch(cwd, args[1], stdout); err != nil {
+			if errors.Is(err, errRunHandled) {
+				return 1
+			}
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
+		}
+		return 0
 	default:
 		fmt.Fprintln(stderr, "Error: unknown command")
 		return 1
@@ -133,4 +146,5 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  contest <contest> <count> [samples] [template] create a contest folder")
 	fmt.Fprintln(w, "  s <problem> [count]     add sample files to a problem")
 	fmt.Fprintln(w, "  run <problem>           compile and test a problem")
+	fmt.Fprintln(w, "  watch <problem>         rerun a problem when files change")
 }

@@ -9,6 +9,7 @@ A minimal Go CLI for local competitive programming workflows.
 - `cpx contest <contest> <count> [samples] [template]` scaffolds contest problem folders from `a` onward
 - `cpx s <problem> [count]` appends more sample pairs to an existing problem
 - `cpx run <problem>` compiles and runs the problem against saved samples
+- `cpx watch <problem>` reruns a problem when its source, config, or sample files change
 - `cpx version` prints the current cpx version
 - `cpx doctor` checks compiler, workspace, config, and templates
 - `.cpx/config.json` controls the active language, compiler standard, and default template
@@ -41,6 +42,7 @@ cpx new a
 cpx contest abc 3
 cpx s a
 cpx run a
+cpx watch a
 ```
 
 This creates a workspace like:
@@ -114,6 +116,20 @@ Override it for one problem:
 ```bash
 cpx new b fast
 cpx new c 3 debug
+```
+
+## Watch mode
+
+Rerun a problem automatically whenever its source file, workspace config, or sample files change:
+
+```bash
+cpx watch a
+```
+
+You can also watch problems inside a contest:
+
+```bash
+cpx watch abc/a
 ```
 
 ## Contest scaffolding
