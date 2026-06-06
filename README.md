@@ -6,6 +6,7 @@ A minimal Go CLI for local competitive programming workflows.
 
 - `cpx init` creates the `.cpx/` workspace
 - `cpx new <problem> [count] [template]` creates a problem folder and sample pairs
+- `cpx contest <contest> <count> [samples] [template]` scaffolds contest problem folders from `a` onward
 - `cpx s <problem> [count]` appends more sample pairs to an existing problem
 - `cpx run <problem>` compiles and runs the problem against saved samples
 - `cpx version` prints the current cpx version
@@ -37,6 +38,7 @@ irm https://raw.githubusercontent.com/rizqishq/cpx/master/install.ps1 | iex
 ```bash
 cpx init
 cpx new a
+cpx contest abc 3
 cpx s a
 cpx run a
 ```
@@ -54,6 +56,23 @@ a/
   samples/
     1.in
     1.out
+
+abc/
+  a/
+    main.cpp
+    samples/
+      1.in
+      1.out
+  b/
+    main.cpp
+    samples/
+      1.in
+      1.out
+  c/
+    main.cpp
+    samples/
+      1.in
+      1.out
 ```
 
 ## Configuration
@@ -95,4 +114,32 @@ Override it for one problem:
 ```bash
 cpx new b fast
 cpx new c 3 debug
+```
+
+## Contest scaffolding
+
+Create a contest folder with problems `a` through `c`:
+
+```bash
+cpx contest abc 3
+```
+
+Run or update a problem inside the contest with its path-like problem name:
+
+```bash
+cpx run abc/a
+cpx s abc/a
+```
+
+Create a contest with 2 sample pairs per problem:
+
+```bash
+cpx contest abc 3 2
+```
+
+Use a specific template for every problem in the contest:
+
+```bash
+cpx contest abc 3 fast
+cpx contest abc 3 2 debug
 ```

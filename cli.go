@@ -68,6 +68,26 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			return 1
 		}
 		return 0
+	case "contest":
+		if len(args) < 3 || len(args) > 5 {
+			fmt.Fprintln(stderr, "Error: contest requires a contest name, problem count, and optional sample count and template name")
+			return 1
+		}
+		problemCount, err := parseContestProblemCount(args[2])
+		if err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
+		}
+		options, err := parseNewOptions(args[3:])
+		if err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
+		}
+		if err := cmdContest(cwd, args[1], problemCount, options, stdout); err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
+		}
+		return 0
 	case "s":
 		if len(args) < 2 || len(args) > 3 {
 			fmt.Fprintln(stderr, "Error: s requires a problem name and an optional sample count")
@@ -110,6 +130,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  doctor                  check local cpx setup")
 	fmt.Fprintln(w, "  init                    initialize competitive programming workspace")
 	fmt.Fprintln(w, "  new <problem> [count] [template] create a new problem folder")
+	fmt.Fprintln(w, "  contest <contest> <count> [samples] [template] create a contest folder")
 	fmt.Fprintln(w, "  s <problem> [count]     add sample files to a problem")
 	fmt.Fprintln(w, "  run <problem>           compile and test a problem")
 }
