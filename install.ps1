@@ -31,6 +31,32 @@ function Resolve-Arch {
     }
 }
 
+function Add-ToPath {
+    param([string]$PathToAdd)
+
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    $entries = @()
+    if ($userPath) {
+        $entries = $userPath.Split(';', [System.StringSplitOptions]::RemoveEmptyEntries)
+    }
+
+    $alreadyPresent = $entries | Where-Object { $_.TrimEnd('\\') -ieq $PathToAdd.TrimEnd('\\') }
+    $newEntries = @($entries)
+    if (-not $alreadyPresent) {
+        $newEntries = @($entries + $PathToAdd)
+        [Environment]::SetEnvironmentVariable("Path", ($newEntries -join ';'), "User")
+    }
+
+    $userPathForSession = if ($newEntries.Count -gt 0) { $newEntries -join ';' } else { $PathToAdd }
+    $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    if ($machinePath) {
+        $env:Path = "$userPathForSession;$machinePath"
+    }
+    else {
+        $env:Path = $userPathForSession
+    }
+}
+
 $ResolvedVersion = Resolve-Version -RequestedVersion $Version
 $AssetVersion = if ($ResolvedVersion.StartsWith("v")) { $ResolvedVersion.Substring(1) } else { $ResolvedVersion }
 $Arch = Resolve-Arch
@@ -56,9 +82,11 @@ try {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     $InstallPath = Join-Path $InstallDir "cpx.exe"
     Move-Item -Path $BinaryPath -Destination $InstallPath -Force
+    Add-ToPath -PathToAdd $InstallDir
 
     Write-Host "Installed cpx $ResolvedVersion to $InstallPath"
-    Write-Host "Make sure $InstallDir is in your PATH."
+    Write-Host "Added $InstallDir to your user PATH."
+    Write-Host "You can run cpx immediately in this PowerShell session."
 }
 finally {
     if (Test-Path $TempDir) {
