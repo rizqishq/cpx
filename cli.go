@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -25,6 +26,19 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			return 1
 		}
 		if err := cmdVersion(stdout); err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
+		}
+		return 0
+	case "doctor":
+		if len(args) != 1 {
+			fmt.Fprintln(stderr, "Error: doctor does not accept arguments")
+			return 1
+		}
+		if err := cmdDoctor(cwd, stdout); err != nil {
+			if errors.Is(err, errDoctorFailed) {
+				return 1
+			}
 			fmt.Fprintf(stderr, "Error: %v\n", err)
 			return 1
 		}
@@ -90,6 +104,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "commands:")
 	fmt.Fprintln(w, "  version                 print cpx version")
+	fmt.Fprintln(w, "  doctor                  check local cpx setup")
 	fmt.Fprintln(w, "  init                    initialize competitive programming workspace")
 	fmt.Fprintln(w, "  new <problem> [count] [template] create a new problem folder")
 	fmt.Fprintln(w, "  s <problem> [count]     add sample files to a problem")

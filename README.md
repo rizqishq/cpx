@@ -9,6 +9,7 @@ A minimal Go CLI for local competitive programming workflows.
 - `cpx s <problem> [count]` appends more sample pairs to an existing problem
 - `cpx run <problem>` compiles and runs the problem against saved samples
 - `cpx version` prints the current cpx version
+- `cpx doctor` checks compiler, workspace, config, and templates
 - `.cpx/config.json` controls the active language, compiler standard, and default template
 - `.cpx/templates/` can contain multiple templates for the same language
 
