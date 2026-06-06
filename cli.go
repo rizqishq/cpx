@@ -89,6 +89,9 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			return 1
 		}
 		if err := cmdRun(cwd, args[1], stdout); err != nil {
+			if errors.Is(err, errRunHandled) {
+				return 1
+			}
 			fmt.Fprintf(stderr, "Error: %v\n", err)
 			return 1
 		}
