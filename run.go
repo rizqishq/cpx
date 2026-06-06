@@ -354,6 +354,13 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			if _, err := fmt.Fprintf(stdout, "  Actual:\n%s\n", formatRunOutput(actualNormalized)); err != nil {
 				return err
 			}
+			if _, err := fmt.Fprintf(stdout, "Stopped after first failed sample.\n"); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(stdout, "Summary: %d/%d passed before stopping at sample %d\n", passedCount, len(pairs), index+1); err != nil {
+				return err
+			}
+			return fmt.Errorf("sample %d failed", index+1)
 		}
 	}
 
