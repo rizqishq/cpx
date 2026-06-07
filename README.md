@@ -17,7 +17,6 @@ A minimal Go CLI for local competitive programming workflows.
 
 ## Requirements
 
-- Go to build `cpx`
 - A C++ compiler in `PATH` to run problems (`g++`, `clang++`, or `c++`)
 
 ## Install
@@ -32,6 +31,12 @@ Windows PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/rizqishq/cpx/master/install.ps1 | iex
+```
+
+After installing, verify the binary on your PATH:
+
+```bash
+cpx version
 ```
 
 ## Quick start
