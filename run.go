@@ -14,6 +14,8 @@ import (
 	"strings"
 )
 
+var errRunHandled = errors.New("run failure already printed")
+
 func normalizeOutput(value string) string {
 	value = strings.ReplaceAll(value, "\r\n", "\n")
 	lines := strings.Split(value, "\n")
@@ -36,6 +38,37 @@ func formatRunOutput(value string) string {
 		lines[index] = "    " + line
 	}
 	return strings.Join(lines, "\n")
+}
+
+func formatRunPath(label, value string) string {
+	return fmt.Sprintf("  %s: %s", label, value)
+}
+
+func writeRunFailureHeader(stdout io.Writer, title string) error {
+	_, err := fmt.Fprintf(stdout, "%s\n", title)
+	return err
+}
+
+func writeRunFailureDetail(stdout io.Writer, label, value string) error {
+	_, err := fmt.Fprintf(stdout, "%s\n", formatRunPath(label, value))
+	return err
+}
+
+func writeRunFailureBlock(stdout io.Writer, label, value string) error {
+	_, err := fmt.Fprintf(stdout, "  %s:\n%s\n", label, formatRunOutput(value))
+	return err
+}
+
+func writeRunSetupFailure(stdout io.Writer, title string, details [][2]string) error {
+	if err := writeRunFailureHeader(stdout, title); err != nil {
+		return err
+	}
+	for _, detail := range details {
+		if err := writeRunFailureDetail(stdout, detail[0], detail[1]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func samplePairs(samplesDir string) ([][2]string, error) {
@@ -285,23 +318,44 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 
 	if _, err := os.Stat(sourcePath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("missing source file: %s", sourcePath)
+			if writeErr := writeRunSetupFailure(stdout, "Error: missing source file", [][2]string{{"Path", sourcePath}}); writeErr != nil {
+				return writeErr
+			}
+			return errRunHandled
 		}
 		return err
 	}
 	if _, err := os.Stat(samplesDir); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("missing samples directory: %s", samplesDir)
+			if writeErr := writeRunSetupFailure(stdout, "Error: missing samples directory", [][2]string{{"Path", samplesDir}}); writeErr != nil {
+				return writeErr
+			}
+			return errRunHandled
 		}
 		return err
 	}
 
 	pairs, err := samplePairs(samplesDir)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "missing sample output for ") {
+			missingInput := strings.TrimPrefix(err.Error(), "missing sample output for ")
+			inputPath := filepath.Join(samplesDir, missingInput)
+			expectedPath := strings.TrimSuffix(inputPath, ".in") + ".out"
+			if writeErr := writeRunSetupFailure(stdout, "Error: missing sample output", [][2]string{{"Input file", inputPath}, {"Expected file", expectedPath}}); writeErr != nil {
+				return writeErr
+			}
+			return errRunHandled
+		}
+		if writeErr := writeRunSetupFailure(stdout, "Error: failed to read sample set", [][2]string{{"Samples directory", samplesDir}}); writeErr != nil {
+			return writeErr
+		}
 		return err
 	}
 	if len(pairs) == 0 {
-		return errors.New("no sample inputs found")
+		if writeErr := writeRunSetupFailure(stdout, "Error: no sample inputs found", [][2]string{{"Samples directory", samplesDir}}); writeErr != nil {
+			return writeErr
+		}
+		return errRunHandled
 	}
 
 	compilerName, compilerPath, err := findCPPCompiler()
@@ -318,7 +372,22 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 	binaryPath := tempBinaryPath(tempDir, problemDir)
 	defer os.Remove(binaryPath)
 	if err := compileCPP(sourcePath, binaryPath, compilerName, compilerPath, cfg.Standard); err != nil {
-		return err
+		if writeErr := writeRunFailureHeader(stdout, "Error: compilation failed"); writeErr != nil {
+			return writeErr
+		}
+		if writeErr := writeRunFailureDetail(stdout, "Compiler", fmt.Sprintf("%s (%s)", compilerName, compilerPath)); writeErr != nil {
+			return writeErr
+		}
+		if writeErr := writeRunFailureDetail(stdout, "Standard", cfg.Standard); writeErr != nil {
+			return writeErr
+		}
+		if writeErr := writeRunFailureDetail(stdout, "Source", sourcePath); writeErr != nil {
+			return writeErr
+		}
+		if writeErr := writeRunFailureBlock(stdout, "Output", err.Error()); writeErr != nil {
+			return writeErr
+		}
+		return errRunHandled
 	}
 	if _, err := fmt.Fprintf(stdout, "Compiled %s\n", sourcePath); err != nil {
 		return err
@@ -329,7 +398,22 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 	for index, pair := range pairs {
 		actual, err := runSample(binaryPath, pair[0], runtimeEnv)
 		if err != nil {
-			return err
+			if writeErr := writeRunFailureHeader(stdout, fmt.Sprintf("Sample %d (%s): ERROR", index+1, filepath.Base(pair[0]))); writeErr != nil {
+				return writeErr
+			}
+			if writeErr := writeRunFailureDetail(stdout, "Input file", pair[0]); writeErr != nil {
+				return writeErr
+			}
+			if writeErr := writeRunFailureBlock(stdout, "Runtime error", err.Error()); writeErr != nil {
+				return writeErr
+			}
+			if _, writeErr := fmt.Fprintf(stdout, "Stopped after first failed sample.\n"); writeErr != nil {
+				return writeErr
+			}
+			if _, writeErr := fmt.Fprintf(stdout, "Summary: %d/%d passed before stopping at sample %d\n", passedCount, len(pairs), index+1); writeErr != nil {
+				return writeErr
+			}
+			return errRunHandled
 		}
 		expectedBytes, err := os.ReadFile(pair[1])
 		if err != nil {
@@ -348,12 +432,25 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			return err
 		}
 		if status == "FAIL" {
-			if _, err := fmt.Fprintf(stdout, "  Expected:\n%s\n", formatRunOutput(expectedNormalized)); err != nil {
+			if writeErr := writeRunFailureDetail(stdout, "Input file", pair[0]); writeErr != nil {
+				return writeErr
+			}
+			if writeErr := writeRunFailureDetail(stdout, "Expected file", pair[1]); writeErr != nil {
+				return writeErr
+			}
+			if writeErr := writeRunFailureBlock(stdout, "Expected", expectedNormalized); writeErr != nil {
+				return writeErr
+			}
+			if writeErr := writeRunFailureBlock(stdout, "Actual", actualNormalized); writeErr != nil {
+				return writeErr
+			}
+			if _, err := fmt.Fprintf(stdout, "Stopped after first failed sample.\n"); err != nil {
 				return err
 			}
-			if _, err := fmt.Fprintf(stdout, "  Actual:\n%s\n", formatRunOutput(actualNormalized)); err != nil {
+			if _, err := fmt.Fprintf(stdout, "Summary: %d/%d passed before stopping at sample %d\n", passedCount, len(pairs), index+1); err != nil {
 				return err
 			}
+			return errRunHandled
 		}
 	}
 

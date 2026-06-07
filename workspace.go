@@ -108,6 +108,52 @@ func nextSampleNumber(samplesDir string) (int, error) {
 	return maxSample + 1, nil
 }
 
+func validateContestName(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("contest name must not be empty")
+	}
+	if name == "." || name == ".." {
+		return fmt.Errorf("invalid contest name: %s", name)
+	}
+	if strings.ContainsRune(name, os.PathSeparator) || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return fmt.Errorf("invalid contest name: %s", name)
+	}
+	return nil
+}
+
+func parseContestProblemCount(value string) (int, error) {
+	count, err := strconv.Atoi(value)
+	if err != nil || count < 1 {
+		return 0, fmt.Errorf("contest problem count must be a positive integer")
+	}
+	if count > 26 {
+		return 0, fmt.Errorf("contest problem count must be at most 26")
+	}
+	return count, nil
+}
+
+func contestProblemLabel(index int) string {
+	return string(rune('a' + index))
+}
+
+func scaffoldProblem(problemDir, sourceName string, template []byte, sampleCount int) error {
+	samplesDir := filepath.Join(problemDir, "samples")
+	if err := os.Mkdir(problemDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.Mkdir(samplesDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(problemDir, sourceName), template, 0o644); err != nil {
+		return err
+	}
+	if err := createSampleFiles(samplesDir, 1, sampleCount); err != nil {
+		return err
+	}
+	return nil
+}
+
 func cmdNew(root, problem string, options newOptions, stdout io.Writer) error {
 	cfg, err := loadConfig(root)
 	if err != nil {
@@ -130,22 +176,52 @@ func cmdNew(root, problem string, options newOptions, stdout io.Writer) error {
 	}
 
 	problemDir := filepath.Join(root, problem)
-	samplesDir := filepath.Join(problemDir, "samples")
-	if err := os.Mkdir(problemDir, 0o755); err != nil {
-		return err
-	}
-	if err := os.Mkdir(samplesDir, 0o755); err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(filepath.Join(problemDir, sourceName), template, 0o644); err != nil {
-		return err
-	}
-	if err := createSampleFiles(samplesDir, 1, options.SampleCount); err != nil {
+	if err := scaffoldProblem(problemDir, sourceName, template, options.SampleCount); err != nil {
 		return err
 	}
 
 	_, err = fmt.Fprintf(stdout, "Created problem at %s using template %s\n", problemDir, templateName)
+	return err
+}
+
+func cmdContest(root, contest string, problemCount int, options newOptions, stdout io.Writer) error {
+	if err := validateContestName(contest); err != nil {
+		return err
+	}
+
+	cfg, err := loadConfig(root)
+	if err != nil {
+		return err
+	}
+
+	templateName := cfg.Template
+	if options.Template != "" {
+		templateName = options.Template
+	}
+
+	template, err := readTemplate(root, cfg, templateName)
+	if err != nil {
+		return err
+	}
+
+	sourceName, err := sourceFileName(cfg)
+	if err != nil {
+		return err
+	}
+
+	contestDir := filepath.Join(root, contest)
+	if err := os.Mkdir(contestDir, 0o755); err != nil {
+		return err
+	}
+
+	for index := 0; index < problemCount; index++ {
+		problemDir := filepath.Join(contestDir, contestProblemLabel(index))
+		if err := scaffoldProblem(problemDir, sourceName, template, options.SampleCount); err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprintf(stdout, "Created contest at %s with %d problem(s) using template %s\n", contestDir, problemCount, templateName)
 	return err
 }
 

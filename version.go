@@ -9,7 +9,7 @@ import (
 
 var version = "dev"
 
-var pseudoVersionPattern = regexp.MustCompile(`^v\d+\.\d+\.\d+-\d{14}-[0-9a-f]+(?:\+dirty)?$`)
+var pseudoVersionPattern = regexp.MustCompile(`^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\.\d{14}-[0-9a-f]+|-\d{14}-[0-9a-f]+)(?:\+dirty)?$`)
 
 func isReleaseLikeVersion(value string) bool {
 	if value == "" || value == "(devel)" {
