@@ -7,6 +7,34 @@ import (
 	"os"
 )
 
+func usageFor(command string) string {
+	switch command {
+	case "version":
+		return "cpx version"
+	case "doctor":
+		return "cpx doctor"
+	case "init":
+		return "cpx init"
+	case "new":
+		return "cpx new <problem> [count] [template]"
+	case "contest":
+		return "cpx contest <contest> <count> [samples] [template]"
+	case "s":
+		return "cpx s <problem> [count]"
+	case "run":
+		return "cpx run <problem>"
+	case "watch":
+		return "cpx watch <problem>"
+	default:
+		return "cpx [command]"
+	}
+}
+
+func printUsageError(stderr io.Writer, message, command string) {
+	fmt.Fprintf(stderr, "Error: %s\n", message)
+	fmt.Fprintf(stderr, "Usage: %s\n", usageFor(command))
+}
+
 func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
 		printHelp(stdout)
@@ -22,7 +50,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 	switch args[0] {
 	case "version":
 		if len(args) != 1 {
-			fmt.Fprintln(stderr, "Error: version does not accept arguments")
+			printUsageError(stderr, "version does not accept arguments", "version")
 			return 1
 		}
 		if err := cmdVersion(stdout); err != nil {
@@ -32,7 +60,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	case "doctor":
 		if len(args) != 1 {
-			fmt.Fprintln(stderr, "Error: doctor does not accept arguments")
+			printUsageError(stderr, "doctor does not accept arguments", "doctor")
 			return 1
 		}
 		if err := cmdDoctor(cwd, stdout); err != nil {
@@ -45,7 +73,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	case "init":
 		if len(args) != 1 {
-			fmt.Fprintln(stderr, "Error: init does not accept arguments")
+			printUsageError(stderr, "init does not accept arguments", "init")
 			return 1
 		}
 		if err := cmdInit(cwd, stdout); err != nil {
@@ -55,7 +83,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	case "new":
 		if len(args) < 2 || len(args) > 4 {
-			fmt.Fprintln(stderr, "Error: new requires a problem name, with optional sample count and template name")
+			printUsageError(stderr, "new requires a problem name, with optional sample count and template name", "new")
 			return 1
 		}
 		options, err := parseNewOptions(args[2:])
@@ -70,7 +98,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	case "contest":
 		if len(args) < 3 || len(args) > 5 {
-			fmt.Fprintln(stderr, "Error: contest requires a contest name, problem count, and optional sample count and template name")
+			printUsageError(stderr, "contest requires a contest name, problem count, and optional sample count and template name", "contest")
 			return 1
 		}
 		problemCount, err := parseContestProblemCount(args[2])
@@ -90,7 +118,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	case "s":
 		if len(args) < 2 || len(args) > 3 {
-			fmt.Fprintln(stderr, "Error: s requires a problem name and an optional sample count")
+			printUsageError(stderr, "s requires a problem name and an optional sample count", "s")
 			return 1
 		}
 		sampleCount, err := parseSampleCountArg(args[2:])
@@ -105,7 +133,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	case "run":
 		if len(args) != 2 {
-			fmt.Fprintln(stderr, "Error: run requires a problem name")
+			printUsageError(stderr, "run requires a problem name", "run")
 			return 1
 		}
 		if err := cmdRun(cwd, args[1], stdout); err != nil {
@@ -118,7 +146,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	case "watch":
 		if len(args) != 2 {
-			fmt.Fprintln(stderr, "Error: watch requires a problem name")
+			printUsageError(stderr, "watch requires a problem name", "watch")
 			return 1
 		}
 		if err := cmdWatch(cwd, args[1], stdout); err != nil {
