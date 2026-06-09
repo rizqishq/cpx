@@ -42,6 +42,8 @@ func printUnknownCommandError(stderr io.Writer, command string) {
 }
 
 func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
+	configureColorSupport(stdout, stderr)
+
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
 		printHelp(stdout)
 		return 0

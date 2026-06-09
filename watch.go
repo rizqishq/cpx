@@ -16,6 +16,10 @@ const watchInterval = 500 * time.Millisecond
 type watchSnapshot map[string]time.Time
 
 func cmdWatch(root, problem string, stdout io.Writer) error {
+	if err := validateProblemPath(problem); err != nil {
+		return err
+	}
+
 	snapshot, err := currentWatchSnapshot(root, problem)
 	if err != nil {
 		return err

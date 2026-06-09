@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,9 +13,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var errRunHandled = errors.New("run failure already printed")
+
+const runSampleTimeout = 5 * time.Second
 
 func normalizeOutput(value string) string {
 	value = strings.ReplaceAll(value, "\r\n", "\n")
@@ -273,7 +277,10 @@ func runSample(binaryPath, inputPath string, env []string) (string, error) {
 		return "", err
 	}
 
-	cmd := exec.Command(binaryPath)
+	ctx, cancel := context.WithTimeout(context.Background(), runSampleTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, binaryPath)
 	cmd.Env = env
 	cmd.Dir = filepath.Dir(binaryPath)
 	cmd.Stdin = bytes.NewReader(input)
@@ -283,6 +290,14 @@ func runSample(binaryPath, inputPath string, env []string) (string, error) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			message := fmt.Sprintf("program timed out after %s", runSampleTimeout)
+			if stderr.Len() > 0 {
+				message += fmt.Sprintf("\nstderr:\n%s", strings.TrimRight(stderr.String(), "\n"))
+			}
+			return "", errors.New(message)
+		}
+
 		message := fmt.Sprintf("program exited with error: %v", err)
 		if stderr.Len() > 0 {
 			message += fmt.Sprintf("\nstderr:\n%s", strings.TrimRight(stderr.String(), "\n"))
@@ -302,7 +317,35 @@ func tempBinaryPath(tempDir, problemDir string) string {
 	return filepath.Join(dir, name)
 }
 
+func mismatchLineInfo(expected, actual string) (int, string, string) {
+	expectedLines := strings.Split(expected, "\n")
+	actualLines := strings.Split(actual, "\n")
+	maxLines := len(expectedLines)
+	if len(actualLines) > maxLines {
+		maxLines = len(actualLines)
+	}
+
+	for index := 0; index < maxLines; index++ {
+		expectedLine := "<missing>"
+		actualLine := "<missing>"
+		if index < len(expectedLines) {
+			expectedLine = expectedLines[index]
+		}
+		if index < len(actualLines) {
+			actualLine = actualLines[index]
+		}
+		if expectedLine != actualLine {
+			return index + 1, expectedLine, actualLine
+		}
+	}
+	return 0, "", ""
+}
+
 func cmdRun(root, problem string, stdout io.Writer) error {
+	if err := validateProblemPath(problem); err != nil {
+		return err
+	}
+
 	cfg, err := loadConfig(root)
 	if err != nil {
 		return err
@@ -438,6 +481,18 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			}
 			if writeErr := writeRunFailureDetail(stdout, "Expected file", pair[1]); writeErr != nil {
 				return writeErr
+			}
+			lineNumber, expectedLine, actualLine := mismatchLineInfo(expectedNormalized, actualNormalized)
+			if lineNumber > 0 {
+				if writeErr := writeRunFailureDetail(stdout, "First mismatch", fmt.Sprintf("line %d", lineNumber)); writeErr != nil {
+					return writeErr
+				}
+				if writeErr := writeRunFailureDetail(stdout, "Expected line", expectedLine); writeErr != nil {
+					return writeErr
+				}
+				if writeErr := writeRunFailureDetail(stdout, "Actual line", actualLine); writeErr != nil {
+					return writeErr
+				}
 			}
 			if writeErr := writeRunFailureBlock(stdout, "Expected", expectedNormalized); writeErr != nil {
 				return writeErr

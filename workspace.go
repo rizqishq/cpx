@@ -122,6 +122,28 @@ func validateContestName(name string) error {
 	return nil
 }
 
+func validateProblemPath(problem string) error {
+	problem = strings.TrimSpace(problem)
+	if problem == "" {
+		return fmt.Errorf("problem path must not be empty")
+	}
+	if filepath.IsAbs(problem) || strings.HasPrefix(problem, "/") || strings.HasPrefix(problem, "\\") {
+		return fmt.Errorf("invalid problem path: %s", problem)
+	}
+	if strings.Contains(problem, "\\") {
+		return fmt.Errorf("invalid problem path: %s", problem)
+	}
+
+	parts := strings.Split(problem, "/")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" || part == "." || part == ".." {
+			return fmt.Errorf("invalid problem path: %s", problem)
+		}
+	}
+	return nil
+}
+
 func parseContestProblemCount(value string) (int, error) {
 	count, err := strconv.Atoi(value)
 	if err != nil || count < 1 {
@@ -156,6 +178,10 @@ func scaffoldProblem(problemDir, sourceName string, template []byte, sampleCount
 }
 
 func cmdNew(root, problem string, options newOptions, stdout io.Writer) error {
+	if err := validateProblemPath(problem); err != nil {
+		return err
+	}
+
 	cfg, err := loadConfig(root)
 	if err != nil {
 		return err
@@ -228,6 +254,10 @@ func cmdContest(root, contest string, problemCount int, options newOptions, stdo
 }
 
 func cmdAddSamples(root, problem string, sampleCount int, stdout io.Writer) error {
+	if err := validateProblemPath(problem); err != nil {
+		return err
+	}
+
 	samplesDir := filepath.Join(root, problem, "samples")
 	if _, err := os.Stat(samplesDir); err != nil {
 		if os.IsNotExist(err) {
