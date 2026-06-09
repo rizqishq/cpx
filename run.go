@@ -45,6 +45,7 @@ func formatRunPath(label, value string) string {
 }
 
 func writeRunFailureHeader(stdout io.Writer, title string) error {
+	title = strings.Replace(title, "Error:", colorizeErrorLabel(), 1)
 	_, err := fmt.Fprintf(stdout, "%s\n", title)
 	return err
 }
@@ -389,7 +390,7 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 		}
 		return errRunHandled
 	}
-	if _, err := fmt.Fprintf(stdout, "Compiled %s\n", sourcePath); err != nil {
+	if _, err := fmt.Fprintf(stdout, "%s Compiled %s\n", colorizeRunStatus("PASS"), sourcePath); err != nil {
 		return err
 	}
 
@@ -428,7 +429,7 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			passedCount++
 		}
 
-		if _, err := fmt.Fprintf(stdout, "Sample %d (%s): %s\n", index+1, filepath.Base(pair[0]), status); err != nil {
+		if _, err := fmt.Fprintf(stdout, "Sample %d (%s): %s\n", index+1, filepath.Base(pair[0]), colorizeRunStatus(status)); err != nil {
 			return err
 		}
 		if status == "FAIL" {

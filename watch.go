@@ -58,7 +58,7 @@ func cmdWatch(root, problem string, stdout io.Writer) error {
 
 		nextSnapshot, err := currentWatchSnapshot(root, problem)
 		if err != nil {
-			if _, writeErr := fmt.Fprintf(stdout, "Warning: failed to refresh watch snapshot: %v\n", err); writeErr != nil {
+			if _, writeErr := fmt.Fprintf(stdout, "%s failed to refresh watch snapshot: %v\n", colorizeWarningLabel(), err); writeErr != nil {
 				return writeErr
 			}
 			continue

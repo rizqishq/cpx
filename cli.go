@@ -31,12 +31,12 @@ func usageFor(command string) string {
 }
 
 func printUsageError(stderr io.Writer, message, command string) {
-	fmt.Fprintf(stderr, "Error: %s\n", message)
+	fmt.Fprintf(stderr, "%s %s\n", colorizeErrorLabel(), message)
 	fmt.Fprintf(stderr, "Usage: %s\n", usageFor(command))
 }
 
 func printUnknownCommandError(stderr io.Writer, command string) {
-	fmt.Fprintf(stderr, "Error: unknown command: %s\n", command)
+	fmt.Fprintf(stderr, "%s unknown command: %s\n", colorizeErrorLabel(), command)
 	fmt.Fprintf(stderr, "Usage: %s\n", usageFor(""))
 	fmt.Fprintln(stderr, "Run `cpx help` to see available commands.")
 }
@@ -49,7 +49,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		fmt.Fprintf(stderr, "Error: %v\n", err)
+		fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 		return 1
 	}
 
@@ -60,7 +60,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			return 1
 		}
 		if err := cmdVersion(stdout); err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		return 0
@@ -73,7 +73,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			if errors.Is(err, errDoctorFailed) {
 				return 1
 			}
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		return 0
@@ -83,7 +83,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			return 1
 		}
 		if err := cmdInit(cwd, stdout); err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		return 0
@@ -94,11 +94,11 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		}
 		options, err := parseNewOptions(args[2:])
 		if err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		if err := cmdNew(cwd, args[1], options, stdout); err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		return 0
@@ -109,16 +109,16 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		}
 		problemCount, err := parseContestProblemCount(args[2])
 		if err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		options, err := parseNewOptions(args[3:])
 		if err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		if err := cmdContest(cwd, args[1], problemCount, options, stdout); err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		return 0
@@ -129,11 +129,11 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		}
 		sampleCount, err := parseSampleCountArg(args[2:])
 		if err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		if err := cmdAddSamples(cwd, args[1], sampleCount, stdout); err != nil {
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		return 0
@@ -146,7 +146,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			if errors.Is(err, errRunHandled) {
 				return 1
 			}
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		return 0
@@ -159,7 +159,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 			if errors.Is(err, errRunHandled) {
 				return 1
 			}
-			fmt.Fprintf(stderr, "Error: %v\n", err)
+			fmt.Fprintf(stderr, "%s %v\n", colorizeErrorLabel(), err)
 			return 1
 		}
 		return 0

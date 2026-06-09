@@ -28,7 +28,7 @@ type doctorCheck struct {
 }
 
 func (c doctorCheck) writeTo(w io.Writer) error {
-	_, err := fmt.Fprintf(w, "[%s] %s: %s\n", c.status, c.label, c.detail)
+	_, err := fmt.Fprintf(w, "[%s] %s: %s\n", colorizeDoctorStatus(c.status), c.label, c.detail)
 	return err
 }
 
