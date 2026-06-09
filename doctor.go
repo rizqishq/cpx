@@ -76,7 +76,7 @@ func collectDoctorChecks(root string) doctorResult {
 	result.add(doctorOK, "version", resolvedVersion())
 
 	if exePath, err := os.Executable(); err != nil {
-		result.add(doctorWarn, "binary", err.Error())
+		result.add(doctorWarn, "binary", fmt.Sprintf("resolve executable path: %v", err))
 	} else {
 		result.add(doctorOK, "binary", exePath)
 	}
@@ -118,7 +118,7 @@ func collectDoctorChecks(root string) doctorResult {
 		}
 		return result
 	} else if err != nil {
-		result.add(doctorFail, "workspace", err.Error())
+		result.add(doctorFail, "workspace", fmt.Sprintf("check %s: %v", configFile, err))
 		result.add(doctorFail, "run readiness", "workspace check failed")
 		return result
 	}
@@ -185,7 +185,7 @@ func compilerVersionCheck(compilerPath string) doctorCheck {
 		return doctorCheck{
 			status: doctorWarn,
 			label:  "compiler version",
-			detail: err.Error(),
+			detail: fmt.Sprintf("run %s --version: %v", compilerPath, err),
 		}
 	}
 

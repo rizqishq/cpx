@@ -140,16 +140,17 @@ func contestProblemLabel(index int) string {
 func scaffoldProblem(problemDir, sourceName string, template []byte, sampleCount int) error {
 	samplesDir := filepath.Join(problemDir, "samples")
 	if err := os.Mkdir(problemDir, 0o755); err != nil {
-		return err
+		return fmt.Errorf("create problem directory %s: %w", problemDir, err)
 	}
 	if err := os.Mkdir(samplesDir, 0o755); err != nil {
-		return err
+		return fmt.Errorf("create samples directory %s: %w", samplesDir, err)
 	}
-	if err := os.WriteFile(filepath.Join(problemDir, sourceName), template, 0o644); err != nil {
-		return err
+	sourcePath := filepath.Join(problemDir, sourceName)
+	if err := os.WriteFile(sourcePath, template, 0o644); err != nil {
+		return fmt.Errorf("write source file %s: %w", sourcePath, err)
 	}
 	if err := createSampleFiles(samplesDir, 1, sampleCount); err != nil {
-		return err
+		return fmt.Errorf("create sample files in %s: %w", samplesDir, err)
 	}
 	return nil
 }
@@ -177,7 +178,7 @@ func cmdNew(root, problem string, options newOptions, stdout io.Writer) error {
 
 	problemDir := filepath.Join(root, problem)
 	if err := scaffoldProblem(problemDir, sourceName, template, options.SampleCount); err != nil {
-		return err
+		return fmt.Errorf("create problem %s: %w", problem, err)
 	}
 
 	_, err = fmt.Fprintf(stdout, "Created problem at %s using template %s\n", problemDir, templateName)
@@ -211,13 +212,14 @@ func cmdContest(root, contest string, problemCount int, options newOptions, stdo
 
 	contestDir := filepath.Join(root, contest)
 	if err := os.Mkdir(contestDir, 0o755); err != nil {
-		return err
+		return fmt.Errorf("create contest directory %s: %w", contestDir, err)
 	}
 
 	for index := 0; index < problemCount; index++ {
-		problemDir := filepath.Join(contestDir, contestProblemLabel(index))
+		label := contestProblemLabel(index)
+		problemDir := filepath.Join(contestDir, label)
 		if err := scaffoldProblem(problemDir, sourceName, template, options.SampleCount); err != nil {
-			return err
+			return fmt.Errorf("create contest problem %s/%s: %w", contest, label, err)
 		}
 	}
 
@@ -236,10 +238,10 @@ func cmdAddSamples(root, problem string, sampleCount int, stdout io.Writer) erro
 
 	start, err := nextSampleNumber(samplesDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("inspect sample numbering in %s: %w", samplesDir, err)
 	}
 	if err := createSampleFiles(samplesDir, start, sampleCount); err != nil {
-		return err
+		return fmt.Errorf("create sample files in %s: %w", samplesDir, err)
 	}
 
 	_, err = fmt.Fprintf(stdout, "Added %d sample(s) to %s\n", sampleCount, problem)

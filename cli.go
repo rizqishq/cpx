@@ -35,6 +35,12 @@ func printUsageError(stderr io.Writer, message, command string) {
 	fmt.Fprintf(stderr, "Usage: %s\n", usageFor(command))
 }
 
+func printUnknownCommandError(stderr io.Writer, command string) {
+	fmt.Fprintf(stderr, "Error: unknown command: %s\n", command)
+	fmt.Fprintf(stderr, "Usage: %s\n", usageFor(""))
+	fmt.Fprintln(stderr, "Run `cpx help` to see available commands.")
+}
+
 func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
 		printHelp(stdout)
@@ -158,7 +164,7 @@ func runCLI(args []string, stdout io.Writer, stderr io.Writer) int {
 		}
 		return 0
 	default:
-		fmt.Fprintln(stderr, "Error: unknown command")
+		printUnknownCommandError(stderr, args[0])
 		return 1
 	}
 }
