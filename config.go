@@ -37,18 +37,20 @@ int main() {
 `
 
 type config struct {
-	Language      string   `json:"language"`
-	Standard      string   `json:"standard"`
-	Template      string   `json:"template"`
-	CompilerFlags []string `json:"compilerFlags"`
+	Language          string   `json:"language"`
+	Standard          string   `json:"standard"`
+	Template          string   `json:"template"`
+	CompilerFlags     []string `json:"compilerFlags"`
+	RunTimeoutMs     int      `json:"runTimeoutMs"`
 }
 
 func defaultConfig() config {
 	return config{
-		Language:      "cpp",
-		Standard:      "c++17",
-		Template:      "main",
-		CompilerFlags: []string{},
+		Language:          "cpp",
+		Standard:          "c++17",
+		Template:          "main",
+		CompilerFlags:     []string{},
+		RunTimeoutMs:     5000,
 	}
 }
 
@@ -77,6 +79,9 @@ func normalizeConfig(cfg config) config {
 	if cfg.Template == "" {
 		cfg.Template = defaults.Template
 	}
+	if cfg.RunTimeoutMs < 1 {
+		cfg.RunTimeoutMs = defaults.RunTimeoutMs
+	}
 
 	return cfg
 }
@@ -104,6 +109,9 @@ func validateConfig(cfg config) error {
 	}
 	if err := validateTemplateName(cfg.Template); err != nil {
 		return err
+	}
+	if cfg.RunTimeoutMs < 1 {
+		return errors.New("config runTimeoutMs must be a positive integer")
 	}
 	return nil
 }

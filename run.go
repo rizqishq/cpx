@@ -18,8 +18,6 @@ import (
 
 var errRunHandled = errors.New("run failure already printed")
 
-const runSampleTimeout = 5 * time.Second
-
 func normalizeOutput(value string) string {
 	value = strings.ReplaceAll(value, "\r\n", "\n")
 	lines := strings.Split(value, "\n")
@@ -283,13 +281,13 @@ func compileCPP(sourcePath, binaryPath, compilerName, compilerPath string, cfg c
 	return nil
 }
 
-func runSample(binaryPath, inputPath string, env []string) (string, error) {
+func runSample(binaryPath, inputPath string, env []string, timeout time.Duration) (string, error) {
 	input, err := os.ReadFile(inputPath)
 	if err != nil {
 		return "", err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), runSampleTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, binaryPath)
@@ -303,7 +301,7 @@ func runSample(binaryPath, inputPath string, env []string) (string, error) {
 
 	if err := cmd.Run(); err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			message := fmt.Sprintf("program timed out after %s", runSampleTimeout)
+			message := fmt.Sprintf("program timed out after %s", timeout)
 			if stderr.Len() > 0 {
 				message += fmt.Sprintf("\nstderr:\n%s", strings.TrimRight(stderr.String(), "\n"))
 			}
@@ -451,9 +449,10 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 	}
 
 	runtimeEnv := runtimeEnvForCompiler(compilerPath)
+	runTimeout := time.Duration(cfg.RunTimeoutMs) * time.Millisecond
 	passedCount := 0
 	for index, pair := range pairs {
-		actual, err := runSample(binaryPath, pair[0], runtimeEnv)
+		actual, err := runSample(binaryPath, pair[0], runtimeEnv, runTimeout)
 		if err != nil {
 			if writeErr := writeRunFailureHeader(stdout, fmt.Sprintf("Sample %d (%s): ERROR", index+1, filepath.Base(pair[0]))); writeErr != nil {
 				return writeErr
