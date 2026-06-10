@@ -30,19 +30,6 @@ func usageFor(command string) string {
 	}
 }
 
-func helpEntries() []commandHelpEntry {
-	return []commandHelpEntry{
-		{command: "version", description: "print cpx version"},
-		{command: "doctor", description: "check local cpx setup"},
-		{command: "init", description: "initialize competitive programming workspace"},
-		{command: "new <problem> [count] [template]", description: "create a new problem folder"},
-		{command: "contest <contest> <count> [samples] [template]", description: "create a contest folder"},
-		{command: "s <problem> [count]", description: "add sample files to a problem"},
-		{command: "run <problem>", description: "compile and test a problem"},
-		{command: "watch <problem>", description: "rerun a problem when files change"},
-	}
-}
-
 func descriptionFor(command string) (string, bool) {
 	switch command {
 	case "version":
@@ -265,5 +252,12 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "usage: cpx [command]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "commands:")
-	_ = writeAlignedCommandTable(w, helpEntries())
+	fmt.Fprintln(w, "  version                 print cpx version")
+	fmt.Fprintln(w, "  doctor                  check local cpx setup")
+	fmt.Fprintln(w, "  init                    initialize competitive programming workspace")
+	fmt.Fprintln(w, "  new <problem> [count] [template] create a new problem folder")
+	fmt.Fprintln(w, "  contest <contest> <count> [samples] [template] create a contest folder")
+	fmt.Fprintln(w, "  s <problem> [count]     add sample files to a problem")
+	fmt.Fprintln(w, "  run <problem>           compile and test a problem")
+	fmt.Fprintln(w, "  watch <problem>         rerun a problem when files change")
 }
