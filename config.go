@@ -37,16 +37,18 @@ int main() {
 `
 
 type config struct {
-	Language string `json:"language"`
-	Standard string `json:"standard"`
-	Template string `json:"template"`
+	Language      string   `json:"language"`
+	Standard      string   `json:"standard"`
+	Template      string   `json:"template"`
+	CompilerFlags []string `json:"compilerFlags"`
 }
 
 func defaultConfig() config {
 	return config{
-		Language: "cpp",
-		Standard: "c++17",
-		Template: "main",
+		Language:      "cpp",
+		Standard:      "c++17",
+		Template:      "main",
+		CompilerFlags: []string{},
 	}
 }
 
@@ -54,6 +56,16 @@ func normalizeConfig(cfg config) config {
 	cfg.Language = strings.ToLower(strings.TrimSpace(cfg.Language))
 	cfg.Standard = strings.TrimSpace(cfg.Standard)
 	cfg.Template = strings.TrimSpace(cfg.Template)
+
+	flags := make([]string, 0, len(cfg.CompilerFlags))
+	for _, flag := range cfg.CompilerFlags {
+		flag = strings.TrimSpace(flag)
+		if flag == "" {
+			continue
+		}
+		flags = append(flags, flag)
+	}
+	cfg.CompilerFlags = flags
 
 	defaults := defaultConfig()
 	if cfg.Language == "" {

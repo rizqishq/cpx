@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,9 +13,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var errRunHandled = errors.New("run failure already printed")
+
+const runSampleTimeout = 5 * time.Second
 
 func normalizeOutput(value string) string {
 	value = strings.ReplaceAll(value, "\r\n", "\n")
@@ -40,22 +44,23 @@ func formatRunOutput(value string) string {
 	return strings.Join(lines, "\n")
 }
 
-func formatRunPath(label, value string) string {
-	return fmt.Sprintf("  %s: %s", label, value)
+func formatRunPath(label, value string, labelWidth int) string {
+	return formatAlignedField(label, value, labelWidth)
 }
 
 func writeRunFailureHeader(stdout io.Writer, title string) error {
+	title = strings.Replace(title, "Error:", colorizeErrorLabel(), 1)
 	_, err := fmt.Fprintf(stdout, "%s\n", title)
 	return err
 }
 
-func writeRunFailureDetail(stdout io.Writer, label, value string) error {
-	_, err := fmt.Fprintf(stdout, "%s\n", formatRunPath(label, value))
+func writeRunFailureDetail(stdout io.Writer, label, value string, labelWidth int) error {
+	_, err := fmt.Fprintf(stdout, "%s\n", formatRunPath(label, value, labelWidth))
 	return err
 }
 
-func writeRunFailureBlock(stdout io.Writer, label, value string) error {
-	_, err := fmt.Fprintf(stdout, "  %s:\n%s\n", label, formatRunOutput(value))
+func writeRunFailureBlock(stdout io.Writer, label, value string, labelWidth int) error {
+	_, err := fmt.Fprintf(stdout, "  %-*s\n%s\n", labelWidth, label+":", formatRunOutput(value))
 	return err
 }
 
@@ -63,8 +68,13 @@ func writeRunSetupFailure(stdout io.Writer, title string, details [][2]string) e
 	if err := writeRunFailureHeader(stdout, title); err != nil {
 		return err
 	}
+	labels := make([]string, 0, len(details))
 	for _, detail := range details {
-		if err := writeRunFailureDetail(stdout, detail[0], detail[1]); err != nil {
+		labels = append(labels, detail[0])
+	}
+	labelWidth := maxWidth(labels) + 1
+	for _, detail := range details {
+		if err := writeRunFailureDetail(stdout, detail[0], detail[1], labelWidth); err != nil {
 			return err
 		}
 	}
@@ -180,13 +190,20 @@ func prependEnvPath(env []string, dir string) []string {
 	return append(env, pathKey+"="+dir)
 }
 
-func compileCommand(sourcePath, binaryPath, compilerPath, standard string) (*exec.Cmd, []string) {
-	args := []string{"-std=" + standard, "-O2", "-o", binaryPath, sourcePath}
+func compileArgs(sourcePath, binaryPath, standard string, compilerFlags []string) []string {
+	args := []string{"-std=" + standard, "-O2"}
+	args = append(args, compilerFlags...)
+	args = append(args, "-o", binaryPath, sourcePath)
+	return args
+}
+
+func compileCommand(sourcePath, binaryPath, compilerPath string, cfg config) (*exec.Cmd, []string) {
+	args := compileArgs(sourcePath, binaryPath, cfg.Standard, cfg.CompilerFlags)
 	cmd := exec.Command(compilerPath, args...)
 	if runtime.GOOS == "windows" {
 		sourceDir := filepath.Dir(sourcePath)
 		if sourceDir == filepath.Dir(binaryPath) {
-			args = []string{"-std=" + standard, "-O2", "-o", filepath.Base(binaryPath), filepath.Base(sourcePath)}
+			args = compileArgs(filepath.Base(sourcePath), filepath.Base(binaryPath), cfg.Standard, cfg.CompilerFlags)
 			cmd = exec.Command(compilerPath, args...)
 			cmd.Dir = sourceDir
 		}
@@ -194,8 +211,8 @@ func compileCommand(sourcePath, binaryPath, compilerPath, standard string) (*exe
 	return cmd, args
 }
 
-func compileCommandViaMSYS2(sourcePath, binaryPath, compilerPath, standard string) (*exec.Cmd, []string, error) {
-	cmd, args := compileCommand(sourcePath, binaryPath, compilerPath, standard)
+func compileCommandViaMSYS2(sourcePath, binaryPath, compilerPath string, cfg config) (*exec.Cmd, []string, error) {
+	cmd, args := compileCommand(sourcePath, binaryPath, compilerPath, cfg)
 	if runtime.GOOS != "windows" {
 		return cmd, args, nil
 	}
@@ -233,10 +250,10 @@ func runtimeEnvForCompiler(compilerPath string) []string {
 	return env
 }
 
-func compileCPP(sourcePath, binaryPath, compilerName, compilerPath, standard string) error {
-	cmd, args := compileCommand(sourcePath, binaryPath, compilerPath, standard)
+func compileCPP(sourcePath, binaryPath, compilerName, compilerPath string, cfg config) error {
+	cmd, args := compileCommand(sourcePath, binaryPath, compilerPath, cfg)
 	if runtime.GOOS == "windows" {
-		msys2Cmd, msys2Args, msys2Err := compileCommandViaMSYS2(sourcePath, binaryPath, compilerPath, standard)
+		msys2Cmd, msys2Args, msys2Err := compileCommandViaMSYS2(sourcePath, binaryPath, compilerPath, cfg)
 		if msys2Err == nil {
 			cmd = msys2Cmd
 			args = msys2Args
@@ -272,7 +289,10 @@ func runSample(binaryPath, inputPath string, env []string) (string, error) {
 		return "", err
 	}
 
-	cmd := exec.Command(binaryPath)
+	ctx, cancel := context.WithTimeout(context.Background(), runSampleTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, binaryPath)
 	cmd.Env = env
 	cmd.Dir = filepath.Dir(binaryPath)
 	cmd.Stdin = bytes.NewReader(input)
@@ -282,6 +302,14 @@ func runSample(binaryPath, inputPath string, env []string) (string, error) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			message := fmt.Sprintf("program timed out after %s", runSampleTimeout)
+			if stderr.Len() > 0 {
+				message += fmt.Sprintf("\nstderr:\n%s", strings.TrimRight(stderr.String(), "\n"))
+			}
+			return "", errors.New(message)
+		}
+
 		message := fmt.Sprintf("program exited with error: %v", err)
 		if stderr.Len() > 0 {
 			message += fmt.Sprintf("\nstderr:\n%s", strings.TrimRight(stderr.String(), "\n"))
@@ -301,7 +329,35 @@ func tempBinaryPath(tempDir, problemDir string) string {
 	return filepath.Join(dir, name)
 }
 
+func mismatchLineInfo(expected, actual string) (int, string, string) {
+	expectedLines := strings.Split(expected, "\n")
+	actualLines := strings.Split(actual, "\n")
+	maxLines := len(expectedLines)
+	if len(actualLines) > maxLines {
+		maxLines = len(actualLines)
+	}
+
+	for index := 0; index < maxLines; index++ {
+		expectedLine := "<missing>"
+		actualLine := "<missing>"
+		if index < len(expectedLines) {
+			expectedLine = expectedLines[index]
+		}
+		if index < len(actualLines) {
+			actualLine = actualLines[index]
+		}
+		if expectedLine != actualLine {
+			return index + 1, expectedLine, actualLine
+		}
+	}
+	return 0, "", ""
+}
+
 func cmdRun(root, problem string, stdout io.Writer) error {
+	if err := validateProblemPath(problem); err != nil {
+		return err
+	}
+
 	cfg, err := loadConfig(root)
 	if err != nil {
 		return err
@@ -371,25 +427,26 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 
 	binaryPath := tempBinaryPath(tempDir, problemDir)
 	defer os.Remove(binaryPath)
-	if err := compileCPP(sourcePath, binaryPath, compilerName, compilerPath, cfg.Standard); err != nil {
+	if err := compileCPP(sourcePath, binaryPath, compilerName, compilerPath, cfg); err != nil {
 		if writeErr := writeRunFailureHeader(stdout, "Error: compilation failed"); writeErr != nil {
 			return writeErr
 		}
-		if writeErr := writeRunFailureDetail(stdout, "Compiler", fmt.Sprintf("%s (%s)", compilerName, compilerPath)); writeErr != nil {
+		labelWidth := maxWidth([]string{"Compiler", "Standard", "Source", "Output"}) + 1
+		if writeErr := writeRunFailureDetail(stdout, "Compiler", fmt.Sprintf("%s (%s)", compilerName, compilerPath), labelWidth); writeErr != nil {
 			return writeErr
 		}
-		if writeErr := writeRunFailureDetail(stdout, "Standard", cfg.Standard); writeErr != nil {
+		if writeErr := writeRunFailureDetail(stdout, "Standard", cfg.Standard, labelWidth); writeErr != nil {
 			return writeErr
 		}
-		if writeErr := writeRunFailureDetail(stdout, "Source", sourcePath); writeErr != nil {
+		if writeErr := writeRunFailureDetail(stdout, "Source", sourcePath, labelWidth); writeErr != nil {
 			return writeErr
 		}
-		if writeErr := writeRunFailureBlock(stdout, "Output", err.Error()); writeErr != nil {
+		if writeErr := writeRunFailureBlock(stdout, "Output", err.Error(), labelWidth); writeErr != nil {
 			return writeErr
 		}
 		return errRunHandled
 	}
-	if _, err := fmt.Fprintf(stdout, "Compiled %s\n", sourcePath); err != nil {
+	if _, err := fmt.Fprintf(stdout, "%s Compiled %s\n", colorizeRunStatus("PASS"), sourcePath); err != nil {
 		return err
 	}
 
@@ -401,10 +458,11 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			if writeErr := writeRunFailureHeader(stdout, fmt.Sprintf("Sample %d (%s): ERROR", index+1, filepath.Base(pair[0]))); writeErr != nil {
 				return writeErr
 			}
-			if writeErr := writeRunFailureDetail(stdout, "Input file", pair[0]); writeErr != nil {
+			labelWidth := maxWidth([]string{"Input file", "Runtime error"}) + 1
+			if writeErr := writeRunFailureDetail(stdout, "Input file", pair[0], labelWidth); writeErr != nil {
 				return writeErr
 			}
-			if writeErr := writeRunFailureBlock(stdout, "Runtime error", err.Error()); writeErr != nil {
+			if writeErr := writeRunFailureBlock(stdout, "Runtime error", err.Error(), labelWidth); writeErr != nil {
 				return writeErr
 			}
 			if _, writeErr := fmt.Fprintf(stdout, "Stopped after first failed sample.\n"); writeErr != nil {
@@ -428,20 +486,33 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			passedCount++
 		}
 
-		if _, err := fmt.Fprintf(stdout, "Sample %d (%s): %s\n", index+1, filepath.Base(pair[0]), status); err != nil {
+		if _, err := fmt.Fprintf(stdout, "Sample %d (%s): %s\n", index+1, filepath.Base(pair[0]), colorizeRunStatus(status)); err != nil {
 			return err
 		}
 		if status == "FAIL" {
-			if writeErr := writeRunFailureDetail(stdout, "Input file", pair[0]); writeErr != nil {
+			labelWidth := maxWidth([]string{"Input file", "Expected file", "First mismatch", "Expected line", "Actual line", "Expected", "Actual"}) + 1
+			if writeErr := writeRunFailureDetail(stdout, "Input file", pair[0], labelWidth); writeErr != nil {
 				return writeErr
 			}
-			if writeErr := writeRunFailureDetail(stdout, "Expected file", pair[1]); writeErr != nil {
+			if writeErr := writeRunFailureDetail(stdout, "Expected file", pair[1], labelWidth); writeErr != nil {
 				return writeErr
 			}
-			if writeErr := writeRunFailureBlock(stdout, "Expected", expectedNormalized); writeErr != nil {
+			lineNumber, expectedLine, actualLine := mismatchLineInfo(expectedNormalized, actualNormalized)
+			if lineNumber > 0 {
+				if writeErr := writeRunFailureDetail(stdout, "First mismatch", fmt.Sprintf("line %d", lineNumber), labelWidth); writeErr != nil {
+					return writeErr
+				}
+				if writeErr := writeRunFailureDetail(stdout, "Expected line", expectedLine, labelWidth); writeErr != nil {
+					return writeErr
+				}
+				if writeErr := writeRunFailureDetail(stdout, "Actual line", actualLine, labelWidth); writeErr != nil {
+					return writeErr
+				}
+			}
+			if writeErr := writeRunFailureBlock(stdout, "Expected", expectedNormalized, labelWidth); writeErr != nil {
 				return writeErr
 			}
-			if writeErr := writeRunFailureBlock(stdout, "Actual", actualNormalized); writeErr != nil {
+			if writeErr := writeRunFailureBlock(stdout, "Actual", actualNormalized, labelWidth); writeErr != nil {
 				return writeErr
 			}
 			if _, err := fmt.Fprintf(stdout, "Stopped after first failed sample.\n"); err != nil {

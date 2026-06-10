@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +16,10 @@ const watchInterval = 500 * time.Millisecond
 type watchSnapshot map[string]time.Time
 
 func cmdWatch(root, problem string, stdout io.Writer) error {
+	if err := validateProblemPath(problem); err != nil {
+		return err
+	}
+
 	snapshot, err := currentWatchSnapshot(root, problem)
 	if err != nil {
 		return err
@@ -40,7 +45,7 @@ func cmdWatch(root, problem string, stdout io.Writer) error {
 			return err
 		}
 		if err := cmdRun(root, problem, stdout); err != nil {
-			if err == errRunHandled {
+			if errors.Is(err, errRunHandled) {
 				return nil
 			}
 			return err
@@ -57,7 +62,10 @@ func cmdWatch(root, problem string, stdout io.Writer) error {
 
 		nextSnapshot, err := currentWatchSnapshot(root, problem)
 		if err != nil {
-			return err
+			if _, writeErr := fmt.Fprintf(stdout, "%s failed to refresh watch snapshot: %v\n", colorizeWarningLabel(), err); writeErr != nil {
+				return writeErr
+			}
+			continue
 		}
 		if !watchSnapshotsEqual(snapshot, nextSnapshot) {
 			changed := diffWatchSnapshots(snapshot, nextSnapshot)

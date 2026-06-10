@@ -27,8 +27,8 @@ type doctorCheck struct {
 	detail string
 }
 
-func (c doctorCheck) writeTo(w io.Writer) error {
-	_, err := fmt.Fprintf(w, "[%s] %s: %s\n", c.status, c.label, c.detail)
+func (c doctorCheck) writeTo(w io.Writer, labelWidth int) error {
+	_, err := fmt.Fprintf(w, "[%s] %s\n", colorizeDoctorStatus(c.status), formatAlignedField(c.label, c.detail, labelWidth))
 	return err
 }
 
@@ -53,8 +53,14 @@ func (r *doctorResult) add(status doctorStatus, label, detail string) {
 
 func cmdDoctor(root string, stdout io.Writer) error {
 	result := collectDoctorChecks(root)
+	labels := make([]string, 0, len(result.checks))
 	for _, check := range result.checks {
-		if err := check.writeTo(stdout); err != nil {
+		labels = append(labels, check.label)
+	}
+	labelWidth := maxWidth(labels) + 1
+
+	for _, check := range result.checks {
+		if err := check.writeTo(stdout, labelWidth); err != nil {
 			return err
 		}
 	}
@@ -76,7 +82,7 @@ func collectDoctorChecks(root string) doctorResult {
 	result.add(doctorOK, "version", resolvedVersion())
 
 	if exePath, err := os.Executable(); err != nil {
-		result.add(doctorWarn, "binary", err.Error())
+		result.add(doctorWarn, "binary", fmt.Sprintf("resolve executable path: %v", err))
 	} else {
 		result.add(doctorOK, "binary", exePath)
 	}
@@ -118,7 +124,7 @@ func collectDoctorChecks(root string) doctorResult {
 		}
 		return result
 	} else if err != nil {
-		result.add(doctorFail, "workspace", err.Error())
+		result.add(doctorFail, "workspace", fmt.Sprintf("check %s: %v", configFile, err))
 		result.add(doctorFail, "run readiness", "workspace check failed")
 		return result
 	}
@@ -136,6 +142,9 @@ func collectDoctorChecks(root string) doctorResult {
 	result.add(doctorOK, "config language", cfg.Language)
 	result.add(doctorOK, "config standard", cfg.Standard)
 	result.add(doctorOK, "config template", cfg.Template)
+	if len(cfg.CompilerFlags) > 0 {
+		result.add(doctorOK, "config compilerFlags", strings.Join(cfg.CompilerFlags, " "))
+	}
 
 	available, err := availableTemplates(root, cfg)
 	if err != nil {
@@ -185,7 +194,7 @@ func compilerVersionCheck(compilerPath string) doctorCheck {
 		return doctorCheck{
 			status: doctorWarn,
 			label:  "compiler version",
-			detail: err.Error(),
+			detail: fmt.Sprintf("run %s --version: %v", compilerPath, err),
 		}
 	}
 

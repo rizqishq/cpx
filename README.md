@@ -12,7 +12,7 @@ A minimal Go CLI for local competitive programming workflows.
 - `cpx watch <problem>` reruns a problem when its source, config, or sample files change
 - `cpx version` prints the current cpx version
 - `cpx doctor` checks compiler, workspace, config, and templates
-- `.cpx/config.json` controls the active language, compiler standard, and default template
+- `.cpx/config.json` controls the active language, compiler standard, default template, and optional compiler flags
 - `.cpx/templates/` can contain multiple templates for the same language
 
 ## Requirements
@@ -90,7 +90,8 @@ abc/
 {
   "language": "cpp",
   "standard": "c++17",
-  "template": "main"
+  "template": "main",
+  "compilerFlags": []
 }
 ```
 
@@ -99,6 +100,18 @@ Current config fields:
 - `language`: currently supports `cpp`
 - `standard`: passed to the compiler as `-std=<value>` during `cpx run`
 - `template`: default template name used by `cpx new`
+- `compilerFlags`: optional extra compiler arguments appended during `cpx run`
+
+Example with extra compiler flags:
+
+```json
+{
+  "language": "cpp",
+  "standard": "c++17",
+  "template": "main",
+  "compilerFlags": ["-Wall", "-Wextra", "-DLOCAL"]
+}
+```
 
 ## Multiple templates
 
