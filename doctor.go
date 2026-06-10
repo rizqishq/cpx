@@ -98,7 +98,7 @@ func collectDoctorChecks(root string) doctorResult {
 		result.add(doctorOK, "CXX", preferredCompiler)
 	}
 
-	compilerName, compilerPath, compilerErr := findCPPCompiler()
+	compilerName, compilerPath, compilerErr := resolveCompilerForConfig(defaultConfig())
 	compilerReady := compilerErr == nil
 	if compilerErr != nil {
 		result.add(doctorFail, "compiler", compilerErr.Error())

@@ -188,12 +188,11 @@ func loadConfig(root string) (config, error) {
 }
 
 func sourceFileName(cfg config) (string, error) {
-	switch normalizeConfig(cfg).Language {
-	case "cpp":
-		return "main.cpp", nil
-	default:
-		return "", fmt.Errorf("unsupported language in config: %s", cfg.Language)
+	spec, err := languageSpecForConfig(cfg)
+	if err != nil {
+		return "", err
 	}
+	return spec.sourceFileName, nil
 }
 
 func templateFileName(cfg config, templateName string) (string, error) {
@@ -218,12 +217,11 @@ func templateRelativePath(cfg config, templateName string) (string, error) {
 }
 
 func defaultTemplateFor(cfg config) ([]byte, error) {
-	switch normalizeConfig(cfg).Language {
-	case "cpp":
-		return []byte(defaultTemplate), nil
-	default:
-		return nil, fmt.Errorf("unsupported language in config: %s", cfg.Language)
+	spec, err := languageSpecForConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
+	return []byte(spec.defaultTemplate), nil
 }
 
 func ensureWorkspace(root string) error {
