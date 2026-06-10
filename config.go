@@ -37,18 +37,40 @@ int main() {
 `
 
 type config struct {
-	Language      string   `json:"language"`
-	Standard      string   `json:"standard"`
-	Template      string   `json:"template"`
-	CompilerFlags []string `json:"compilerFlags"`
+	Language          string   `json:"language"`
+	Standard          string   `json:"standard"`
+	Template          string   `json:"template"`
+	CompilerFlags     []string `json:"compilerFlags"`
+	RunTimeoutMs      int      `json:"runTimeoutMs"`
+	StopOnFirstFail   *bool    `json:"stopOnFirstFail"`
+	DiffContextLines  int      `json:"diffContextLines"`
+	WatchIntervalMs   int      `json:"watchIntervalMs"`
 }
+
+func boolPtr(value bool) *bool {
+	v := value
+	return &v
+}
+
+func stopOnFirstFailEnabled(cfg config) bool {
+	if cfg.StopOnFirstFail == nil {
+		return defaultConfigStopOnFirstFail
+	}
+	return *cfg.StopOnFirstFail
+}
+
+const defaultConfigStopOnFirstFail = true
 
 func defaultConfig() config {
 	return config{
-		Language:      "cpp",
-		Standard:      "c++17",
-		Template:      "main",
-		CompilerFlags: []string{},
+		Language:         "cpp",
+		Standard:         "c++17",
+		Template:         "main",
+		CompilerFlags:    []string{},
+		RunTimeoutMs:     5000,
+		StopOnFirstFail:  boolPtr(defaultConfigStopOnFirstFail),
+		DiffContextLines: 1,
+		WatchIntervalMs:  500,
 	}
 }
 
@@ -77,6 +99,18 @@ func normalizeConfig(cfg config) config {
 	if cfg.Template == "" {
 		cfg.Template = defaults.Template
 	}
+	if cfg.RunTimeoutMs < 1 {
+		cfg.RunTimeoutMs = defaults.RunTimeoutMs
+	}
+	if cfg.StopOnFirstFail == nil {
+		cfg.StopOnFirstFail = boolPtr(stopOnFirstFailEnabled(defaults))
+	}
+	if cfg.DiffContextLines < 0 {
+		cfg.DiffContextLines = defaults.DiffContextLines
+	}
+	if cfg.WatchIntervalMs < 1 {
+		cfg.WatchIntervalMs = defaults.WatchIntervalMs
+	}
 
 	return cfg
 }
@@ -104,6 +138,15 @@ func validateConfig(cfg config) error {
 	}
 	if err := validateTemplateName(cfg.Template); err != nil {
 		return err
+	}
+	if cfg.RunTimeoutMs < 1 {
+		return errors.New("config runTimeoutMs must be a positive integer")
+	}
+	if cfg.DiffContextLines < 0 {
+		return errors.New("config diffContextLines must be zero or a positive integer")
+	}
+	if cfg.WatchIntervalMs < 1 {
+		return errors.New("config watchIntervalMs must be a positive integer")
 	}
 	return nil
 }

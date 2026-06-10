@@ -77,3 +77,11 @@ func colorizeErrorLabel() string {
 func colorizeWarningLabel() string {
 	return colorize("Warning:", ansiYellow, stdoutColorsEnabled)
 }
+
+func colorizeDiffExpected(text string) string {
+	return colorize(text, ansiRed, stdoutColorsEnabled)
+}
+
+func colorizeDiffActual(text string) string {
+	return colorize(text, ansiGreen, stdoutColorsEnabled)
+}

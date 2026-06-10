@@ -27,8 +27,8 @@ type doctorCheck struct {
 	detail string
 }
 
-func (c doctorCheck) writeTo(w io.Writer, labelWidth int) error {
-	_, err := fmt.Fprintf(w, "[%s] %s\n", colorizeDoctorStatus(c.status), formatAlignedField(c.label, c.detail, labelWidth))
+func (c doctorCheck) writeTo(w io.Writer) error {
+	_, err := fmt.Fprintf(w, "[%s] %s: %s\n", colorizeDoctorStatus(c.status), c.label, c.detail)
 	return err
 }
 
@@ -53,14 +53,8 @@ func (r *doctorResult) add(status doctorStatus, label, detail string) {
 
 func cmdDoctor(root string, stdout io.Writer) error {
 	result := collectDoctorChecks(root)
-	labels := make([]string, 0, len(result.checks))
 	for _, check := range result.checks {
-		labels = append(labels, check.label)
-	}
-	labelWidth := maxWidth(labels) + 1
-
-	for _, check := range result.checks {
-		if err := check.writeTo(stdout, labelWidth); err != nil {
+		if err := check.writeTo(stdout); err != nil {
 			return err
 		}
 	}
@@ -142,6 +136,10 @@ func collectDoctorChecks(root string) doctorResult {
 	result.add(doctorOK, "config language", cfg.Language)
 	result.add(doctorOK, "config standard", cfg.Standard)
 	result.add(doctorOK, "config template", cfg.Template)
+	result.add(doctorOK, "config runTimeoutMs", fmt.Sprintf("%d", cfg.RunTimeoutMs))
+	result.add(doctorOK, "config stopOnFirstFail", fmt.Sprintf("%t", stopOnFirstFailEnabled(cfg)))
+	result.add(doctorOK, "config diffContextLines", fmt.Sprintf("%d", cfg.DiffContextLines))
+	result.add(doctorOK, "config watchIntervalMs", fmt.Sprintf("%d", cfg.WatchIntervalMs))
 	if len(cfg.CompilerFlags) > 0 {
 		result.add(doctorOK, "config compilerFlags", strings.Join(cfg.CompilerFlags, " "))
 	}

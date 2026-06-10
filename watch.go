@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-const watchInterval = 500 * time.Millisecond
-
 type watchSnapshot map[string]time.Time
 
 func cmdWatch(root, problem string, stdout io.Writer) error {
@@ -57,8 +55,19 @@ func cmdWatch(root, problem string, stdout io.Writer) error {
 		return err
 	}
 
+	cfg, err := loadConfig(root)
+	if err != nil {
+		return err
+	}
+	watchInterval := time.Duration(cfg.WatchIntervalMs) * time.Millisecond
+
 	for {
 		time.Sleep(watchInterval)
+
+		nextCfg, cfgErr := loadConfig(root)
+		if cfgErr == nil {
+			watchInterval = time.Duration(nextCfg.WatchIntervalMs) * time.Millisecond
+		}
 
 		nextSnapshot, err := currentWatchSnapshot(root, problem)
 		if err != nil {
