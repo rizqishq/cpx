@@ -44,8 +44,8 @@ func formatRunOutput(value string) string {
 	return strings.Join(lines, "\n")
 }
 
-func formatRunPath(label, value string) string {
-	return fmt.Sprintf("  %s: %s", label, value)
+func formatRunPath(label, value string, labelWidth int) string {
+	return formatAlignedField(label, value, labelWidth)
 }
 
 func writeRunFailureHeader(stdout io.Writer, title string) error {
@@ -54,13 +54,13 @@ func writeRunFailureHeader(stdout io.Writer, title string) error {
 	return err
 }
 
-func writeRunFailureDetail(stdout io.Writer, label, value string) error {
-	_, err := fmt.Fprintf(stdout, "%s\n", formatRunPath(label, value))
+func writeRunFailureDetail(stdout io.Writer, label, value string, labelWidth int) error {
+	_, err := fmt.Fprintf(stdout, "%s\n", formatRunPath(label, value, labelWidth))
 	return err
 }
 
-func writeRunFailureBlock(stdout io.Writer, label, value string) error {
-	_, err := fmt.Fprintf(stdout, "  %s:\n%s\n", label, formatRunOutput(value))
+func writeRunFailureBlock(stdout io.Writer, label, value string, labelWidth int) error {
+	_, err := fmt.Fprintf(stdout, "  %-*s\n%s\n", labelWidth, label+":", formatRunOutput(value))
 	return err
 }
 
@@ -68,8 +68,13 @@ func writeRunSetupFailure(stdout io.Writer, title string, details [][2]string) e
 	if err := writeRunFailureHeader(stdout, title); err != nil {
 		return err
 	}
+	labels := make([]string, 0, len(details))
 	for _, detail := range details {
-		if err := writeRunFailureDetail(stdout, detail[0], detail[1]); err != nil {
+		labels = append(labels, detail[0])
+	}
+	labelWidth := maxWidth(labels) + 1
+	for _, detail := range details {
+		if err := writeRunFailureDetail(stdout, detail[0], detail[1], labelWidth); err != nil {
 			return err
 		}
 	}
@@ -426,16 +431,17 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 		if writeErr := writeRunFailureHeader(stdout, "Error: compilation failed"); writeErr != nil {
 			return writeErr
 		}
-		if writeErr := writeRunFailureDetail(stdout, "Compiler", fmt.Sprintf("%s (%s)", compilerName, compilerPath)); writeErr != nil {
+		labelWidth := maxWidth([]string{"Compiler", "Standard", "Source", "Output"}) + 1
+		if writeErr := writeRunFailureDetail(stdout, "Compiler", fmt.Sprintf("%s (%s)", compilerName, compilerPath), labelWidth); writeErr != nil {
 			return writeErr
 		}
-		if writeErr := writeRunFailureDetail(stdout, "Standard", cfg.Standard); writeErr != nil {
+		if writeErr := writeRunFailureDetail(stdout, "Standard", cfg.Standard, labelWidth); writeErr != nil {
 			return writeErr
 		}
-		if writeErr := writeRunFailureDetail(stdout, "Source", sourcePath); writeErr != nil {
+		if writeErr := writeRunFailureDetail(stdout, "Source", sourcePath, labelWidth); writeErr != nil {
 			return writeErr
 		}
-		if writeErr := writeRunFailureBlock(stdout, "Output", err.Error()); writeErr != nil {
+		if writeErr := writeRunFailureBlock(stdout, "Output", err.Error(), labelWidth); writeErr != nil {
 			return writeErr
 		}
 		return errRunHandled
@@ -452,10 +458,11 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			if writeErr := writeRunFailureHeader(stdout, fmt.Sprintf("Sample %d (%s): ERROR", index+1, filepath.Base(pair[0]))); writeErr != nil {
 				return writeErr
 			}
-			if writeErr := writeRunFailureDetail(stdout, "Input file", pair[0]); writeErr != nil {
+			labelWidth := maxWidth([]string{"Input file", "Runtime error"}) + 1
+			if writeErr := writeRunFailureDetail(stdout, "Input file", pair[0], labelWidth); writeErr != nil {
 				return writeErr
 			}
-			if writeErr := writeRunFailureBlock(stdout, "Runtime error", err.Error()); writeErr != nil {
+			if writeErr := writeRunFailureBlock(stdout, "Runtime error", err.Error(), labelWidth); writeErr != nil {
 				return writeErr
 			}
 			if _, writeErr := fmt.Fprintf(stdout, "Stopped after first failed sample.\n"); writeErr != nil {
@@ -483,28 +490,29 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			return err
 		}
 		if status == "FAIL" {
-			if writeErr := writeRunFailureDetail(stdout, "Input file", pair[0]); writeErr != nil {
+			labelWidth := maxWidth([]string{"Input file", "Expected file", "First mismatch", "Expected line", "Actual line", "Expected", "Actual"}) + 1
+			if writeErr := writeRunFailureDetail(stdout, "Input file", pair[0], labelWidth); writeErr != nil {
 				return writeErr
 			}
-			if writeErr := writeRunFailureDetail(stdout, "Expected file", pair[1]); writeErr != nil {
+			if writeErr := writeRunFailureDetail(stdout, "Expected file", pair[1], labelWidth); writeErr != nil {
 				return writeErr
 			}
 			lineNumber, expectedLine, actualLine := mismatchLineInfo(expectedNormalized, actualNormalized)
 			if lineNumber > 0 {
-				if writeErr := writeRunFailureDetail(stdout, "First mismatch", fmt.Sprintf("line %d", lineNumber)); writeErr != nil {
+				if writeErr := writeRunFailureDetail(stdout, "First mismatch", fmt.Sprintf("line %d", lineNumber), labelWidth); writeErr != nil {
 					return writeErr
 				}
-				if writeErr := writeRunFailureDetail(stdout, "Expected line", expectedLine); writeErr != nil {
+				if writeErr := writeRunFailureDetail(stdout, "Expected line", expectedLine, labelWidth); writeErr != nil {
 					return writeErr
 				}
-				if writeErr := writeRunFailureDetail(stdout, "Actual line", actualLine); writeErr != nil {
+				if writeErr := writeRunFailureDetail(stdout, "Actual line", actualLine, labelWidth); writeErr != nil {
 					return writeErr
 				}
 			}
-			if writeErr := writeRunFailureBlock(stdout, "Expected", expectedNormalized); writeErr != nil {
+			if writeErr := writeRunFailureBlock(stdout, "Expected", expectedNormalized, labelWidth); writeErr != nil {
 				return writeErr
 			}
-			if writeErr := writeRunFailureBlock(stdout, "Actual", actualNormalized); writeErr != nil {
+			if writeErr := writeRunFailureBlock(stdout, "Actual", actualNormalized, labelWidth); writeErr != nil {
 				return writeErr
 			}
 			if _, err := fmt.Fprintf(stdout, "Stopped after first failed sample.\n"); err != nil {

@@ -40,7 +40,7 @@ type config struct {
 	Language      string   `json:"language"`
 	Standard      string   `json:"standard"`
 	Template      string   `json:"template"`
-	CompilerFlags []string `json:"compilerFlags,omitempty"`
+	CompilerFlags []string `json:"compilerFlags"`
 }
 
 func defaultConfig() config {
