@@ -136,6 +136,9 @@ func collectDoctorChecks(root string) doctorResult {
 	result.add(doctorOK, "config language", cfg.Language)
 	result.add(doctorOK, "config standard", cfg.Standard)
 	result.add(doctorOK, "config template", cfg.Template)
+	if len(cfg.CompilerFlags) > 0 {
+		result.add(doctorOK, "config compilerFlags", strings.Join(cfg.CompilerFlags, " "))
+	}
 
 	available, err := availableTemplates(root, cfg)
 	if err != nil {

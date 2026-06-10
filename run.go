@@ -185,13 +185,20 @@ func prependEnvPath(env []string, dir string) []string {
 	return append(env, pathKey+"="+dir)
 }
 
-func compileCommand(sourcePath, binaryPath, compilerPath, standard string) (*exec.Cmd, []string) {
-	args := []string{"-std=" + standard, "-O2", "-o", binaryPath, sourcePath}
+func compileArgs(sourcePath, binaryPath, standard string, compilerFlags []string) []string {
+	args := []string{"-std=" + standard, "-O2"}
+	args = append(args, compilerFlags...)
+	args = append(args, "-o", binaryPath, sourcePath)
+	return args
+}
+
+func compileCommand(sourcePath, binaryPath, compilerPath string, cfg config) (*exec.Cmd, []string) {
+	args := compileArgs(sourcePath, binaryPath, cfg.Standard, cfg.CompilerFlags)
 	cmd := exec.Command(compilerPath, args...)
 	if runtime.GOOS == "windows" {
 		sourceDir := filepath.Dir(sourcePath)
 		if sourceDir == filepath.Dir(binaryPath) {
-			args = []string{"-std=" + standard, "-O2", "-o", filepath.Base(binaryPath), filepath.Base(sourcePath)}
+			args = compileArgs(filepath.Base(sourcePath), filepath.Base(binaryPath), cfg.Standard, cfg.CompilerFlags)
 			cmd = exec.Command(compilerPath, args...)
 			cmd.Dir = sourceDir
 		}
@@ -199,8 +206,8 @@ func compileCommand(sourcePath, binaryPath, compilerPath, standard string) (*exe
 	return cmd, args
 }
 
-func compileCommandViaMSYS2(sourcePath, binaryPath, compilerPath, standard string) (*exec.Cmd, []string, error) {
-	cmd, args := compileCommand(sourcePath, binaryPath, compilerPath, standard)
+func compileCommandViaMSYS2(sourcePath, binaryPath, compilerPath string, cfg config) (*exec.Cmd, []string, error) {
+	cmd, args := compileCommand(sourcePath, binaryPath, compilerPath, cfg)
 	if runtime.GOOS != "windows" {
 		return cmd, args, nil
 	}
@@ -238,10 +245,10 @@ func runtimeEnvForCompiler(compilerPath string) []string {
 	return env
 }
 
-func compileCPP(sourcePath, binaryPath, compilerName, compilerPath, standard string) error {
-	cmd, args := compileCommand(sourcePath, binaryPath, compilerPath, standard)
+func compileCPP(sourcePath, binaryPath, compilerName, compilerPath string, cfg config) error {
+	cmd, args := compileCommand(sourcePath, binaryPath, compilerPath, cfg)
 	if runtime.GOOS == "windows" {
-		msys2Cmd, msys2Args, msys2Err := compileCommandViaMSYS2(sourcePath, binaryPath, compilerPath, standard)
+		msys2Cmd, msys2Args, msys2Err := compileCommandViaMSYS2(sourcePath, binaryPath, compilerPath, cfg)
 		if msys2Err == nil {
 			cmd = msys2Cmd
 			args = msys2Args
@@ -415,7 +422,7 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 
 	binaryPath := tempBinaryPath(tempDir, problemDir)
 	defer os.Remove(binaryPath)
-	if err := compileCPP(sourcePath, binaryPath, compilerName, compilerPath, cfg.Standard); err != nil {
+	if err := compileCPP(sourcePath, binaryPath, compilerName, compilerPath, cfg); err != nil {
 		if writeErr := writeRunFailureHeader(stdout, "Error: compilation failed"); writeErr != nil {
 			return writeErr
 		}
