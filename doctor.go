@@ -137,6 +137,9 @@ func collectDoctorChecks(root string) doctorResult {
 	result.add(doctorOK, "config standard", cfg.Standard)
 	result.add(doctorOK, "config template", cfg.Template)
 	result.add(doctorOK, "config runTimeoutMs", fmt.Sprintf("%d", cfg.RunTimeoutMs))
+	result.add(doctorOK, "config stopOnFirstFail", fmt.Sprintf("%t", stopOnFirstFailEnabled(cfg)))
+	result.add(doctorOK, "config diffContextLines", fmt.Sprintf("%d", cfg.DiffContextLines))
+	result.add(doctorOK, "config watchIntervalMs", fmt.Sprintf("%d", cfg.WatchIntervalMs))
 	if len(cfg.CompilerFlags) > 0 {
 		result.add(doctorOK, "config compilerFlags", strings.Join(cfg.CompilerFlags, " "))
 	}

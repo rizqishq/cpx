@@ -502,13 +502,16 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			if writeErr := writeRunFailureBlock(stdout, "Runtime error", err.Error()); writeErr != nil {
 				return writeErr
 			}
-			if _, writeErr := fmt.Fprintf(stdout, "Stopped after first failed sample.\n"); writeErr != nil {
-				return writeErr
+			if stopOnFirstFailEnabled(cfg) {
+				if _, writeErr := fmt.Fprintf(stdout, "Stopped after first failed sample.\n"); writeErr != nil {
+					return writeErr
+				}
+				if _, writeErr := fmt.Fprintf(stdout, "Summary: %d/%d passed before stopping at sample %d\n", passedCount, len(pairs), index+1); writeErr != nil {
+					return writeErr
+				}
+				return errRunHandled
 			}
-			if _, writeErr := fmt.Fprintf(stdout, "Summary: %d/%d passed before stopping at sample %d\n", passedCount, len(pairs), index+1); writeErr != nil {
-				return writeErr
-			}
-			return errRunHandled
+			continue
 		}
 		expectedBytes, err := os.ReadFile(pair[1])
 		if err != nil {
@@ -544,7 +547,7 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 				if writeErr := writeRunFailureDetail(stdout, "Actual line", actualLine); writeErr != nil {
 					return writeErr
 				}
-				if writeErr := writeRunFailureBlock(stdout, "Diff preview", mismatchPreview(expectedNormalized, actualNormalized, 1)); writeErr != nil {
+				if writeErr := writeRunFailureBlock(stdout, "Diff preview", mismatchPreview(expectedNormalized, actualNormalized, cfg.DiffContextLines)); writeErr != nil {
 					return writeErr
 				}
 			}
@@ -554,13 +557,15 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 			if writeErr := writeRunFailureBlock(stdout, "Actual", actualNormalized); writeErr != nil {
 				return writeErr
 			}
-			if _, err := fmt.Fprintf(stdout, "Stopped after first failed sample.\n"); err != nil {
-				return err
+			if stopOnFirstFailEnabled(cfg) {
+				if _, err := fmt.Fprintf(stdout, "Stopped after first failed sample.\n"); err != nil {
+					return err
+				}
+				if _, err := fmt.Fprintf(stdout, "Summary: %d/%d passed before stopping at sample %d\n", passedCount, len(pairs), index+1); err != nil {
+					return err
+				}
+				return errRunHandled
 			}
-			if _, err := fmt.Fprintf(stdout, "Summary: %d/%d passed before stopping at sample %d\n", passedCount, len(pairs), index+1); err != nil {
-				return err
-			}
-			return errRunHandled
 		}
 	}
 
@@ -568,7 +573,7 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 		return err
 	}
 	if passedCount != len(pairs) {
-		return errors.New("one or more samples failed")
+		return errRunHandled
 	}
 	return nil
 }
