@@ -11,17 +11,23 @@ import (
 )
 
 type languageSpec struct {
-	id             string
-	sourceFileName string
+	id              string
+	sourceFileName  string
 	defaultTemplate string
-	resolveCompiler func(cfg config) (string, string, error)
+	toolLabel       string
+	resolveTool     func(cfg config) (string, string, error)
 	prepareRuntime  func(sourcePath, binaryPath string, cfg config) (languageRuntime, error)
 }
 
 type languageRuntime struct {
-	compilerName string
-	compilerPath string
+	toolLabel    string
+	toolName     string
+	toolPath     string
+	commandPath  string
+	commandArgs  []string
+	workingDir   string
 	env          []string
+	setupSummary string
 }
 
 func languageSpecForConfig(cfg config) (languageSpec, error) {
@@ -31,23 +37,34 @@ func languageSpecForConfig(cfg config) (languageSpec, error) {
 			id:              "cpp",
 			sourceFileName:  "main.cpp",
 			defaultTemplate: defaultTemplate,
-			resolveCompiler: resolveCPPCompiler,
+			toolLabel:       "compiler",
+			resolveTool:     resolveCPPCompiler,
 			prepareRuntime:  prepareCPPRuntime,
+		}, nil
+	case "python":
+		return languageSpec{
+			id:              "python",
+			sourceFileName:  "main.py",
+			defaultTemplate: pythonDefaultTemplate,
+			toolLabel:       "interpreter",
+			resolveTool:     resolvePythonInterpreter,
+			prepareRuntime:  preparePythonRuntime,
 		}, nil
 	default:
 		return languageSpec{}, fmt.Errorf("unsupported language in config: %s", cfg.Language)
 	}
 }
 
-func resolveCompilerForConfig(cfg config) (string, string, error) {
+func resolveRuntimeToolForConfig(cfg config) (languageSpec, string, string, error) {
 	spec, err := languageSpecForConfig(cfg)
 	if err != nil {
-		return "", "", err
+		return languageSpec{}, "", "", err
 	}
-	if spec.resolveCompiler == nil {
-		return "", "", nil
+	if spec.resolveTool == nil {
+		return spec, "", "", nil
 	}
-	return spec.resolveCompiler(cfg)
+	name, path, err := spec.resolveTool(cfg)
+	return spec, name, path, err
 }
 
 func prepareLanguageRuntime(sourcePath, binaryPath string, cfg config) (languageRuntime, error) {
@@ -83,14 +100,46 @@ func resolveCPPCompiler(cfg config) (string, string, error) {
 func prepareCPPRuntime(sourcePath, binaryPath string, cfg config) (languageRuntime, error) {
 	compilerName, compilerPath, err := resolveCPPCompiler(cfg)
 	runtimeInfo := languageRuntime{
-		compilerName: compilerName,
-		compilerPath: compilerPath,
+		toolLabel:    "compiler",
+		toolName:     compilerName,
+		toolPath:     compilerPath,
+		commandPath:  binaryPath,
+		commandArgs:  nil,
+		workingDir:   filepath.Dir(binaryPath),
 		env:          runtimeEnvForCompiler(compilerPath),
+		setupSummary: "Compiled",
 	}
 	if err != nil {
 		return runtimeInfo, err
 	}
 	if err := compileCPP(sourcePath, binaryPath, compilerName, compilerPath, cfg); err != nil {
+		return runtimeInfo, err
+	}
+	return runtimeInfo, nil
+}
+
+func resolvePythonInterpreter(cfg config) (string, string, error) {
+	interpreterPath, err := exec.LookPath("python3")
+	if err != nil {
+		return "", "", fmt.Errorf("python3 was not found in PATH")
+	}
+	return "python3", interpreterPath, nil
+}
+
+func preparePythonRuntime(sourcePath, binaryPath string, cfg config) (languageRuntime, error) {
+	_ = binaryPath
+	interpreterName, interpreterPath, err := resolvePythonInterpreter(cfg)
+	runtimeInfo := languageRuntime{
+		toolLabel:    "interpreter",
+		toolName:     interpreterName,
+		toolPath:     interpreterPath,
+		commandPath:  interpreterPath,
+		commandArgs:  []string{sourcePath},
+		workingDir:   filepath.Dir(sourcePath),
+		env:          append([]string{}, os.Environ()...),
+		setupSummary: "Prepared",
+	}
+	if err != nil {
 		return runtimeInfo, err
 	}
 	return runtimeInfo, nil

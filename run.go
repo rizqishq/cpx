@@ -118,7 +118,7 @@ func samplePairs(samplesDir string) ([][2]string, error) {
 	return pairs, nil
 }
 
-func runSample(binaryPath, inputPath string, env []string, timeout time.Duration) (string, error) {
+func runSample(commandPath string, commandArgs []string, workingDir, inputPath string, env []string, timeout time.Duration) (string, error) {
 	input, err := os.ReadFile(inputPath)
 	if err != nil {
 		return "", err
@@ -127,9 +127,9 @@ func runSample(binaryPath, inputPath string, env []string, timeout time.Duration
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, binaryPath)
+	cmd := exec.CommandContext(ctx, commandPath, commandArgs...)
 	cmd.Env = env
-	cmd.Dir = filepath.Dir(binaryPath)
+	cmd.Dir = workingDir
 	cmd.Stdin = bytes.NewReader(input)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -243,10 +243,12 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 		return err
 	}
 
-	sourceName, err := sourceFileName(cfg)
+	spec, err := languageSpecForConfig(cfg)
 	if err != nil {
 		return err
 	}
+
+	sourceName := spec.sourceFileName
 
 	problemDir := filepath.Join(root, problem)
 	sourcePath := filepath.Join(problemDir, sourceName)
@@ -304,11 +306,19 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 	defer os.Remove(binaryPath)
 	runtimeInfo, err := prepareLanguageRuntime(sourcePath, binaryPath, cfg)
 	if err != nil {
-		if writeErr := writeRunFailureHeader(stdout, "Error: compilation failed"); writeErr != nil {
+		title := "Error: compilation failed"
+		if spec.id != "cpp" {
+			title = "Error: runtime setup failed"
+		}
+		if writeErr := writeRunFailureHeader(stdout, title); writeErr != nil {
 			return writeErr
 		}
-		if runtimeInfo.compilerName != "" || runtimeInfo.compilerPath != "" {
-			if writeErr := writeRunFailureDetail(stdout, "Compiler", fmt.Sprintf("%s (%s)", runtimeInfo.compilerName, runtimeInfo.compilerPath)); writeErr != nil {
+		if runtimeInfo.toolName != "" || runtimeInfo.toolPath != "" {
+			label := runtimeInfo.toolLabel
+			if label != "" {
+				label = strings.ToUpper(label[:1]) + label[1:]
+			}
+			if writeErr := writeRunFailureDetail(stdout, label, fmt.Sprintf("%s (%s)", runtimeInfo.toolName, runtimeInfo.toolPath)); writeErr != nil {
 				return writeErr
 			}
 		}
@@ -323,7 +333,7 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 		}
 		return errRunHandled
 	}
-	if _, err := fmt.Fprintf(stdout, "%s Compiled %s\n", colorizeRunStatus("PASS"), sourcePath); err != nil {
+	if _, err := fmt.Fprintf(stdout, "%s %s %s\n", colorizeRunStatus("PASS"), runtimeInfo.setupSummary, sourcePath); err != nil {
 		return err
 	}
 
@@ -331,7 +341,7 @@ func cmdRun(root, problem string, stdout io.Writer) error {
 	runTimeout := time.Duration(cfg.RunTimeoutMs) * time.Millisecond
 	passedCount := 0
 	for index, pair := range pairs {
-		actual, err := runSample(binaryPath, pair[0], runtimeEnv, runTimeout)
+		actual, err := runSample(runtimeInfo.commandPath, runtimeInfo.commandArgs, runtimeInfo.workingDir, pair[0], runtimeEnv, runTimeout)
 		if err != nil {
 			if writeErr := writeRunFailureHeader(stdout, fmt.Sprintf("Sample %d (%s): ERROR", index+1, filepath.Base(pair[0]))); writeErr != nil {
 				return writeErr

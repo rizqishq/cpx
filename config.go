@@ -36,6 +36,17 @@ int main() {
 }
 `
 
+const pythonDefaultTemplate = `import sys
+
+
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    main()
+`
+
 type config struct {
 	Language          string   `json:"language"`
 	Standard          string   `json:"standard"`

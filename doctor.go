@@ -91,30 +91,32 @@ func collectDoctorChecks(root string) doctorResult {
 	result.add(doctorOK, "arch", runtime.GOARCH)
 	result.add(doctorOK, "cwd", root)
 
-	preferredCompiler := strings.TrimSpace(os.Getenv("CXX"))
-	if preferredCompiler == "" {
-		result.add(doctorOK, "CXX", "not set")
-	} else {
-		result.add(doctorOK, "CXX", preferredCompiler)
-	}
-
-	compilerName, compilerPath, compilerErr := resolveCompilerForConfig(defaultConfig())
-	compilerReady := compilerErr == nil
-	if compilerErr != nil {
-		result.add(doctorFail, "compiler", compilerErr.Error())
-	} else {
-		result.add(doctorOK, "compiler", fmt.Sprintf("%s (%s)", compilerName, compilerPath))
-		compilerVersion := compilerVersionCheck(compilerPath)
-		result.add(compilerVersion.status, compilerVersion.label, compilerVersion.detail)
-	}
+	defaultSpec, toolName, toolPath, toolErr := resolveRuntimeToolForConfig(defaultConfig())
+	defaultToolLabel := defaultSpec.toolLabel
+	toolReady := toolErr == nil
 
 	configFile := filepath.Join(root, configPath)
 	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		result.add(doctorWarn, "workspace", "not initialized; run 'cpx init' first")
-		if compilerReady {
-			result.add(doctorWarn, "run readiness", "compiler is ready, but workspace is not initialized")
+		if defaultToolLabel == "compiler" {
+			preferredCompiler := strings.TrimSpace(os.Getenv("CXX"))
+			if preferredCompiler == "" {
+				result.add(doctorOK, "CXX", "not set")
+			} else {
+				result.add(doctorOK, "CXX", preferredCompiler)
+			}
+		}
+		if toolErr != nil {
+			result.add(doctorFail, defaultToolLabel, toolErr.Error())
 		} else {
-			result.add(doctorFail, "run readiness", "compiler is missing and workspace is not initialized")
+			result.add(doctorOK, defaultToolLabel, fmt.Sprintf("%s (%s)", toolName, toolPath))
+			toolVersion := runtimeToolVersionCheck(defaultToolLabel, toolPath)
+			result.add(toolVersion.status, toolVersion.label, toolVersion.detail)
+		}
+		result.add(doctorWarn, "workspace", "not initialized; run 'cpx init' first")
+		if toolReady {
+			result.add(doctorWarn, "run readiness", fmt.Sprintf("%s is ready, but workspace is not initialized", defaultToolLabel))
+		} else {
+			result.add(doctorFail, "run readiness", fmt.Sprintf("%s is missing and workspace is not initialized", defaultToolLabel))
 		}
 		return result
 	} else if err != nil {
@@ -142,6 +144,25 @@ func collectDoctorChecks(root string) doctorResult {
 	result.add(doctorOK, "config watchIntervalMs", fmt.Sprintf("%d", cfg.WatchIntervalMs))
 	if len(cfg.CompilerFlags) > 0 {
 		result.add(doctorOK, "config compilerFlags", strings.Join(cfg.CompilerFlags, " "))
+	}
+
+	spec, toolName, toolPath, toolErr := resolveRuntimeToolForConfig(cfg)
+	toolLabel := spec.toolLabel
+	toolReady = toolErr == nil
+	if toolLabel == "compiler" {
+		preferredCompiler := strings.TrimSpace(os.Getenv("CXX"))
+		if preferredCompiler == "" {
+			result.add(doctorOK, "CXX", "not set")
+		} else {
+			result.add(doctorOK, "CXX", preferredCompiler)
+		}
+	}
+	if toolErr != nil {
+		result.add(doctorFail, toolLabel, toolErr.Error())
+	} else {
+		result.add(doctorOK, toolLabel, fmt.Sprintf("%s (%s)", toolName, toolPath))
+		toolVersion := runtimeToolVersionCheck(toolLabel, toolPath)
+		result.add(toolVersion.status, toolVersion.label, toolVersion.detail)
 	}
 
 	available, err := availableTemplates(root, cfg)
@@ -176,23 +197,23 @@ func collectDoctorChecks(root string) doctorResult {
 	result.add(doctorOK, "default template", cfg.Template)
 	result.add(doctorOK, "default template file", filepath.Join(root, templateRelPath))
 
-	if compilerReady {
+	if toolReady {
 		result.add(doctorOK, "run readiness", "ready")
 	} else {
-		result.add(doctorFail, "run readiness", "compiler is missing")
+		result.add(doctorFail, "run readiness", fmt.Sprintf("%s is missing", toolLabel))
 	}
 
 	return result
 }
 
-func compilerVersionCheck(compilerPath string) doctorCheck {
-	cmd := exec.Command(compilerPath, "--version")
+func runtimeToolVersionCheck(toolLabel, toolPath string) doctorCheck {
+	cmd := exec.Command(toolPath, "--version")
 	output, err := cmd.Output()
 	if err != nil {
 		return doctorCheck{
 			status: doctorWarn,
-			label:  "compiler version",
-			detail: fmt.Sprintf("run %s --version: %v", compilerPath, err),
+			label:  toolLabel + " version",
+			detail: fmt.Sprintf("run %s --version: %v", toolPath, err),
 		}
 	}
 
@@ -201,12 +222,12 @@ func compilerVersionCheck(compilerPath string) doctorCheck {
 		firstLine = firstLine[:newline]
 	}
 	if firstLine == "" {
-		firstLine = filepath.Base(compilerPath)
+		firstLine = filepath.Base(toolPath)
 	}
 
 	return doctorCheck{
 		status: doctorOK,
-		label:  "compiler version",
+		label:  toolLabel + " version",
 		detail: firstLine,
 	}
 }

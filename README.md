@@ -11,13 +11,14 @@ A minimal Go CLI for local competitive programming workflows.
 - `cpx run <problem>` compiles and runs the problem against saved samples
 - `cpx watch <problem>` reruns a problem when its source, config, or sample files change
 - `cpx version` prints the current cpx version
-- `cpx doctor` checks compiler, workspace, config, and templates
+- `cpx doctor` checks runtime tool readiness, workspace, config, and templates
 - `.cpx/config.json` controls the active language, compiler standard, default template, compiler flags, and run/watch behavior
 - `.cpx/templates/` can contain multiple templates for the same language
 
 ## Requirements
 
-- A C++ compiler in `PATH` to run problems (`g++`, `clang++`, or `c++`)
+- For C++: a compiler in `PATH` (`g++`, `clang++`, or `c++`)
+- For Python: `python3` in `PATH`
 
 ## Install
 
@@ -82,6 +83,8 @@ abc/
       1.out
 ```
 
+If you switch `language` to `python`, new problems use `main.py` instead.
+
 ## Configuration
 
 `cpx init` creates `.cpx/config.json`:
@@ -101,7 +104,7 @@ abc/
 
 Current config fields:
 
-- `language`: currently supports `cpp`
+- `language`: currently supports `cpp` and `python`
 - `standard`: passed to the compiler as `-std=<value>` during `cpx run`
 - `template`: default template name used by `cpx new`
 - `compilerFlags`: optional extra compiler arguments appended during `cpx run`
@@ -134,6 +137,8 @@ Examples:
 - `.cpx/templates/main.cpp`
 - `.cpx/templates/fast.cpp`
 - `.cpx/templates/debug.cpp`
+- `.cpx/templates/main.py`
+- `.cpx/templates/script.py`
 
 Use the default template from config:
 
@@ -147,6 +152,8 @@ Override it for one problem:
 cpx new b fast
 cpx new c 3 debug
 ```
+
+For Python, use a Python template file and set `language` to `python` in `.cpx/config.json` before running `cpx new`.
 
 ## Watch mode
 
